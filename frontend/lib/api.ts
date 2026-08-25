@@ -2,13 +2,15 @@ import axios from 'axios';
 import { Language, TranscriptionResponse, TranslationResponse } from '../types';
 
 const getApiBaseUrl = () => {
+  // If environment variable is explicitly set (e.g., Vercel), use it
+  if (process.env.NEXT_PUBLIC_API_URL) {
+    return process.env.NEXT_PUBLIC_API_URL;
+  }
   if (typeof window !== 'undefined') {
-    // If running in the browser, construct the URL based on the current hostname
     const hostname = window.location.hostname;
     return `http://${hostname}:3001/api`;
   }
-  // Fallback for SSR or if environment variable is explicitly set
-  return process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api';
+  return 'http://localhost:3001/api';
 };
 
 const API_BASE_URL = getApiBaseUrl();

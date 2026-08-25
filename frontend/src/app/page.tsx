@@ -58,8 +58,8 @@ export default function TranslatorApp() {
 
   const fetchUsage = async () => {
     try {
-      const hostname = typeof window !== 'undefined' ? window.location.hostname : 'localhost';
-      const res = await axios.get(`http://${hostname}:3001/api/usage`);
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL || (typeof window !== 'undefined' ? `http://${window.location.hostname}:3001/api` : 'http://localhost:3001/api');
+      const res = await axios.get(`${apiUrl}/usage`);
       setUsageStats(res.data);
     } catch(e) {
       console.error(e);
@@ -70,8 +70,14 @@ export default function TranslatorApp() {
   useEffect(() => {
     if (isRecording && isLiveMode) {
       setIsTranscribing(true);
-      const hostname = window.location.hostname;
-      const ws = new WebSocket(`ws://${hostname}:3001`);
+      let wsUrlStr = `ws://${window.location.hostname}:3001`;
+      if (process.env.NEXT_PUBLIC_WS_URL) {
+        wsUrlStr = process.env.NEXT_PUBLIC_WS_URL;
+      } else if (process.env.NEXT_PUBLIC_API_URL) {
+        // Fallback: derive ws:// from http://
+        wsUrlStr = process.env.NEXT_PUBLIC_API_URL.replace('http', 'ws').replace('/api', '');
+      }
+      const ws = new WebSocket(wsUrlStr);
       wsRef.current = ws;
 
       const wsMode = activeTab === 'direct-sttt' ? 'translate' : 'transcribe';
