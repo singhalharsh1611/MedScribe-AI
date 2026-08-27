@@ -10,3 +10,4 @@ build/
 .DS_Store
 usage.db
 *.db
+backend/assets/audio1.mp3
