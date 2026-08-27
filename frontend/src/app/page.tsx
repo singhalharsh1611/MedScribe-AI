@@ -144,11 +144,13 @@ export default function TranslatorApp() {
     
     try {
       const apiMode = activeTab === 'direct-sttt' ? 'translate' : 'transcribe';
-      const result = await transcribeAudio(audioBlob, spokenLang, apiMode);
+      const result = await transcribeAudio(audioBlob, spokenLang, apiMode, (partialText) => {
+        setTranscription(partialText);
+      });
       setTranscription(result.text);
       fetchUsage();
     } catch (err: any) {
-      setError(err.response?.data?.message || 'Transcription failed.');
+      setError(err.message || 'Transcription failed.');
     } finally {
       setIsTranscribing(false);
     }
@@ -287,7 +289,7 @@ export default function TranslatorApp() {
                   disabled={isTranscribing}
                   className="bg-blue-600 hover:bg-blue-700 disabled:bg-blue-300 text-white px-6 py-2 rounded-md font-medium transition-colors"
                 >
-                  {isTranscribing ? 'Transcribing...' : 'Transcribe Audio'}
+                  {isTranscribing ? 'Streaming via WebSocket...' : 'Transcribe Audio'}
                 </button>
               </div>
             </div>
@@ -314,7 +316,7 @@ export default function TranslatorApp() {
                 className={`w-full flex-grow p-4 border rounded-md resize-none min-h-[200px] ${activeTab === 'direct-sttt' ? 'focus:ring-indigo-500 focus:border-indigo-500 bg-indigo-50/30' : 'focus:ring-blue-500 focus:border-blue-500'}`}
                 value={transcription}
                 onChange={(e) => setTranscription(e.target.value)}
-                placeholder={isTranscribing ? "Processing your audio... please wait." : "Result will appear here... (You can edit it)"}
+                placeholder={isTranscribing ? "Streaming audio to Sarvam via WebSocket... please wait." : "Result will appear here... (You can edit it)"}
                 disabled={isTranscribing && !isLiveMode}
               />
             </div>
