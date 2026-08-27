@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
-import { getLanguages, transcribeAudio, translateText } from '../../lib/api';
+import { getLanguages, transcribeAudio, translateText, extractDrugs, mapDrugsToDatabase } from '../../lib/api';
 import { Language } from '../../types';
 import { useAudioRecorder } from '../../hooks/use-audio-recorder';
 import { Mic, Square, Play, Copy, Upload, Trash2, Languages, Activity } from 'lucide-react';
@@ -19,6 +19,12 @@ export default function TranslatorApp() {
   
   const [isTranscribing, setIsTranscribing] = useState(false);
   const [isTranslating, setIsTranslating] = useState(false);
+  
+  // Prescription Pipeline State
+  const [isExtracting, setIsExtracting] = useState(false);
+  const [mappedDrugs, setMappedDrugs] = useState<any[]>([]);
+  const [pipelineMetrics, setPipelineMetrics] = useState<{ extractMs: number; mapMs: number } | null>(null);
+
   const [error, setError] = useState<string | null>(null);
   
   const [isLiveMode, setIsLiveMode] = useState(false);
@@ -174,6 +180,39 @@ export default function TranslatorApp() {
       setError(err.response?.data?.message || 'Translation failed.');
     } finally {
       setIsTranslating(false);
+    }
+  };
+
+  const handleExtractAndMap = async () => {
+    if (!transcription.trim()) return;
+    setIsExtracting(true);
+    setError(null);
+    setMappedDrugs([]);
+    setPipelineMetrics(null);
+
+    try {
+      // Step 1: Extract
+      const startExtract = performance.now();
+      const extracted = await extractDrugs(transcription);
+      const extractTime = performance.now() - startExtract;
+
+      if (extracted.length === 0) {
+        setError('No drugs found in transcript.');
+        setIsExtracting(false);
+        return;
+      }
+
+      // Step 2: Map
+      const startMap = performance.now();
+      const mapped = await mapDrugsToDatabase(extracted);
+      const mapTime = performance.now() - startMap;
+
+      setMappedDrugs(mapped);
+      setPipelineMetrics({ extractMs: extractTime, mapMs: mapTime });
+    } catch (err: any) {
+      setError(err.response?.data?.error || err.message || 'Failed to extract and map drugs.');
+    } finally {
+      setIsExtracting(false);
     }
   };
 
@@ -366,6 +405,87 @@ export default function TranslatorApp() {
                   onChange={(e) => setTranslation(e.target.value)}
                   placeholder={isTranslating ? "Translating..." : "Translation will appear here..."}
                 />
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* PRESCRIPTION PIPELINE PANEL */}
+        {transcription && (
+          <div className="bg-white rounded-xl shadow-md p-6 mt-8 border-t-4 border-teal-500">
+            <div className="flex justify-between items-center mb-4">
+              <h2 className="text-xl font-medium text-gray-800 flex items-center gap-2">
+                💊 Prescription Generation (AI)
+              </h2>
+              <button
+                onClick={handleExtractAndMap}
+                disabled={isExtracting || !transcription.trim()}
+                className="bg-teal-600 hover:bg-teal-700 disabled:bg-teal-300 text-white px-4 py-2 rounded-md font-medium transition-colors"
+              >
+                {isExtracting ? 'Extracting & Mapping...' : 'Extract Drugs & Map to DB'}
+              </button>
+            </div>
+
+            {pipelineMetrics && (
+              <div className="flex gap-4 mb-4 text-xs">
+                <div className="bg-teal-50 text-teal-800 px-3 py-1.5 rounded border border-teal-200">
+                  <span className="font-semibold">LLM Extraction Time:</span> {(pipelineMetrics.extractMs / 1000).toFixed(2)}s
+                </div>
+                <div className="bg-teal-50 text-teal-800 px-3 py-1.5 rounded border border-teal-200">
+                  <span className="font-semibold">DB Mapping Time:</span> {(pipelineMetrics.mapMs / 1000).toFixed(2)}s
+                </div>
+                <div className="bg-teal-100 text-teal-900 px-3 py-1.5 rounded border border-teal-300 font-bold">
+                  <span>Total Pipeline:</span> {((pipelineMetrics.extractMs + pipelineMetrics.mapMs) / 1000).toFixed(2)}s
+                </div>
+              </div>
+            )}
+
+            {mappedDrugs.length > 0 && (
+              <div className="space-y-4">
+                <h3 className="font-semibold text-gray-700">Identified Medications & Candidates:</h3>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {mappedDrugs.map((drug, i) => (
+                    <div key={i} className="border rounded-lg p-4 bg-teal-50 border-teal-100">
+                      <p className="font-medium text-teal-800 mb-2">Original: <span className="font-bold">"{drug.original_extracted_word}"</span></p>
+                      <div className="space-y-4">
+                        {/* Phonetic Matches */}
+                        {drug.top_phonetic && drug.top_phonetic.length > 0 && (
+                          <div className="space-y-2">
+                            <h4 className="text-xs font-bold text-purple-700 uppercase tracking-wider mb-1 border-b border-purple-200 pb-1">Top Phonetic Matches</h4>
+                            {drug.top_phonetic.map((match: any, j: number) => (
+                              <div key={`p-${j}`} className="text-sm flex flex-col bg-white p-2 rounded border border-purple-100 shadow-sm">
+                                <div className="flex justify-between items-start mb-1">
+                                  <p className="font-semibold text-gray-800">{match.brand_name}</p>
+                                </div>
+                                {match.salt && <p className="text-gray-500 text-xs leading-tight">{match.salt}</p>}
+                              </div>
+                            ))}
+                          </div>
+                        )}
+
+                        {/* Fuzzy Matches */}
+                        {drug.top_fuzzy && drug.top_fuzzy.length > 0 && (
+                          <div className="space-y-2 pt-2">
+                            <h4 className="text-xs font-bold text-blue-700 uppercase tracking-wider mb-1 border-b border-blue-200 pb-1">Top Fuzzy Matches</h4>
+                            {drug.top_fuzzy.map((match: any, j: number) => (
+                              <div key={`f-${j}`} className="text-sm flex flex-col bg-white p-2 rounded border border-blue-100 shadow-sm">
+                                <div className="flex justify-between items-start mb-1">
+                                  <p className="font-semibold text-gray-800">{match.brand_name}</p>
+                                  <span className="text-blue-600 font-mono text-[10px]">Score: {Math.round(match.score)}</span>
+                                </div>
+                                {match.salt && <p className="text-gray-500 text-xs leading-tight">{match.salt}</p>}
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                        
+                        {(!drug.top_phonetic || drug.top_phonetic.length === 0) && (!drug.top_fuzzy || drug.top_fuzzy.length === 0) && (
+                          <p className="text-sm text-red-500 italic">No matches found.</p>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                </div>
               </div>
             )}
           </div>

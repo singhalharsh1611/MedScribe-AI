@@ -5,6 +5,8 @@ import morgan from 'morgan';
 import languagesRoute from './routes/languages.route';
 import transcriptionRoute from './routes/transcription.route';
 import translationRoute from './routes/translation.route';
+import prescriptionRoute from './routes/prescription.route';
+import { initPrescriptionService } from './services/prescription.service';
 
 import usageRoute from './routes/usage.route';
 import http from 'http';
@@ -22,6 +24,7 @@ app.use(morgan('dev')); // Add request logging
 app.use('/api/languages', languagesRoute);
 app.use('/api/transcription', transcriptionRoute);
 app.use('/api/translation', translationRoute);
+app.use('/api/prescription', prescriptionRoute);
 app.use('/api/usage', usageRoute);
 
 app.use((err: any, req: express.Request, res: express.Response, next: express.NextFunction) => {
@@ -33,6 +36,9 @@ const server = http.createServer(app);
 
 // Setup WebSocket Server for Live Transcription
 setupWebSocketServer(server);
+
+// Initialize the Prescription Pipeline
+initPrescriptionService();
 
 server.listen(port, () => {
   console.log(`Express API and WebSocket is running on http://localhost:${port}`);

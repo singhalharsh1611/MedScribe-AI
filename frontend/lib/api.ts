@@ -105,3 +105,13 @@ export const translateText = async (
 
   return response.data;
 };
+
+export const extractDrugs = async (transcript: string): Promise<string[]> => {
+  const response = await axios.post(`${API_BASE_URL}/prescription/extract`, { transcript });
+  return response.data.extracted;
+};
+
+export const mapDrugsToDatabase = async (extractedDrugs: string[]): Promise<any[]> => {
+  const response = await axios.post(`${API_BASE_URL}/prescription/map`, { extractedDrugs });
+  return response.data.mapped;
+};
