@@ -225,7 +225,7 @@ export default function TranslatorApp() {
           try {
               const formData = new FormData();
               formData.append('audio', audioBlob, 'recording.webm');
-              const res = await axios.post(`${process.env.NEXT_PUBLIC_API_URL}/transcribe/upload`, formData);
+              const res = await axios.post(`${process.env.NEXT_PUBLIC_API_URL}/transcription/upload`, formData);
               uploadedAudioUrl = res.data.audioUrl;
           } catch(e) {
               console.error('Failed to upload audio to cloudinary:', e);
@@ -369,7 +369,7 @@ export default function TranslatorApp() {
           try {
               const formData = new FormData();
               formData.append('audio', audioBlob, 'recording.webm');
-              const res = await axios.post(`${process.env.NEXT_PUBLIC_API_URL}/transcribe/upload`, formData);
+              const res = await axios.post(`${process.env.NEXT_PUBLIC_API_URL}/transcription/upload`, formData);
               uploadedAudioUrl = res.data.audioUrl;
           } catch(e) {
               console.error('Failed to upload audio to cloudinary:', e);
