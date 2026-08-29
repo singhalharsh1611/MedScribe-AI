@@ -250,8 +250,8 @@ export const generatePrescription = async (transcript: string, mappedDrugs: any[
     console.log('[Prescription Service] Generating final prescription via MedGemma...');
     
     // 1. Build prompt for MedGemma
-    const prompt = `You are an expert Medical AI Prescription Writing Assistant.
-Your task is to generate a highly professional and structured clinical prescription.
+    const prompt = `You are an elite Clinical Pharmacist and Medical AI Prescription Writing Assistant.
+Your task is to accurately transcribe a raw, noisy doctor-patient conversation into a highly professional, structured clinical prescription.
 
 RAW TRANSCRIPT:
 """${transcript}"""
@@ -259,21 +259,38 @@ RAW TRANSCRIPT:
 MAPPED MEDICATIONS (Candidates):
 ${JSON.stringify(mappedDrugs, null, 2)}
 
-INSTRUCTIONS:
-1. Extract all clinical details (chief complaint, vitals, history, etc.) from the transcript. Extract Patient Name, Age, and Gender if mentioned. If something is not mentioned, use "N/A" or leave empty.
-2. Identify the medications prescribed in the transcript.
-3. For each medication, comprehensively evaluate ALL 10 matches (5 from 'top_phonetic' and 5 from 'top_fuzzy').
-   - STEP 1: If 'auto_picked' exists, you MUST strictly use its 'brand_name' and skip the other steps.
-   - STEP 2: Evaluate the phonetic matches and fuzzy matches to find the one that most closely resembles the spoken medication name.
-   - STEP 3: Give a higher priority and weightage to the 'top_phonetic' matches, as they are phonetically identical to what the doctor spoke.
-   - CRITICAL: You MUST pick an exact 'brand_name' from the provided arrays. NEVER output the 'original_extracted_word'. Do NOT invent medication names.
-4. Extract the following for each medication:
-   - **dose**: The amount to take (e.g., "1 Tablet", "10 ml", "50 mg").
-   - **route**: Infer this from the selected brand_name. If the name contains "Tablet", "Capsule", or "Suspension", set route to "Oral". If it contains "Injection", set to "Subcutaneous / IM / IV". If it contains "Cream" or "Ointment", set to "Topical".
-   - **frequency**: Normalize medical abbreviations (e.g., "OD" -> "Once daily (OD)", "BD" -> "Twice daily (BD)", "TDS" -> "Three times a day (TDS)", "HS" -> "At bedtime (HS)", "QID" -> "Four times a day (QID)").
-   - **duration**: How long to take the medication (e.g., "5 days", "1 month").
-   - **instructions**: ONLY write specific situational instructions (e.g., "After meals", "Before meals", "Take with water", "In the morning"). Do NOT write dosage like "1 tablet" here.
-5. Return the exact JSON structure below, and NOTHING else (do not include markdown ticks).
+DETAILED INSTRUCTIONS:
+
+1. PATIENT DEMOGRAPHICS & CLINICAL DETAILS:
+   - Extract Patient Name, Age, and Gender if mentioned. If absent, use "N/A".
+   - Professionally summarize the "chief_complaint" and "hpi" (History of Present Illness) using standard medical terminology.
+   - Format vitals cleanly with units if mentioned (e.g., "BP: 120/80 mmHg", "Temp: 98.6 F"). Leave as "N/A" if absent.
+
+2. MEDICATION SELECTION (ENTITY RESOLUTION):
+   - You are provided with a JSON of extracted words and their top 10 database matches (5 Phonetic, 5 Fuzzy).
+   - For each medication, comprehensively evaluate ALL 10 matches.
+   - STEP 1: If 'auto_picked' exists for a drug, you MUST strictly use its 'brand_name' and skip the other steps.
+   - STEP 2: Evaluate the phonetic and fuzzy matches to find the candidate that most closely resembles the spoken medication name in the transcript.
+   - STEP 3: Give HIGHER priority and weightage to 'top_phonetic' matches, as they are phonetically identical to what the doctor spoke (bypassing STT spelling errors).
+   - CRITICAL: You MUST pick an exact 'brand_name' from the provided arrays. NEVER output the 'original_extracted_word'. Do NOT invent or guess medication names.
+
+3. DOSAGE & ADMINISTRATION:
+   - **dose**: Extract the exact quantity to consume at one time (e.g., "1 Tablet", "10 ml", "50 mg", "2 puffs"). If not spoken, use "As directed".
+   - **route**: Infer this logically from the selected brand_name. (e.g., Tablet/Capsule/Syrup -> "Oral", Injection -> "Subcutaneous / IM / IV", Cream/Ointment -> "Topical", Inhaler -> "Inhalation").
+   - **frequency**: Strictly normalize medical abbreviations:
+      * "OD" -> "Once daily (OD)"
+      * "BD" / "BID" -> "Twice daily (BD)"
+      * "TDS" / "TID" -> "Three times a day (TDS)"
+      * "QID" -> "Four times a day (QID)"
+      * "HS" -> "At bedtime (HS)"
+      * "SOS" -> "As needed (SOS)"
+      * If none is mentioned, use "As directed".
+   - **duration**: How long to take the medication (e.g., "5 days", "1 month"). If absent, use "N/A".
+   - **instructions**: Extract situational instructions (e.g., "After meals", "Before meals", "Empty stomach", "With warm water"). Do NOT write the dose here. If absent, use "N/A".
+
+4. FORMATTING RULES:
+   - Return the exact JSON structure below, and NOTHING else. 
+   - Do NOT wrap the JSON in markdown code blocks (e.g., using code blocks). Just output the raw JSON string.
 
 REQUIRED JSON FORMAT:
 {
@@ -327,7 +344,7 @@ REQUIRED JSON FORMAT:
             model: model,
             messages: [{ role: 'user', content: prompt }],
             max_tokens: 2000,
-            temperature: 0.15
+            temperature: 0.3
         }, {
             headers: {
                 'Authorization': `Bearer ${apiKey}`,
