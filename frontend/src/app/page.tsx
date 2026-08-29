@@ -36,7 +36,7 @@ export default function TranslatorApp() {
   const [isLiveMode, setIsLiveMode] = useState(false);
   const wsRef = useRef<WebSocket | null>(null);
   
-  const [activeTab, setActiveTab] = useState<'two-step' | 'direct-sttt' | 'history'>('two-step');
+  const [activeTab, setActiveTab] = useState<'doctor' | 'developer' | 'history'>('doctor');
   
   const [usageStats, setUsageStats] = useState<any>({ transcriptions: [], translations: [] });
 
@@ -62,6 +62,42 @@ export default function TranslatorApp() {
   };
 
   const { isRecording, audioBlob, setAudioBlob, startRecording, stopRecording, clearAudio } = useAudioRecorder(isLiveMode ? { onDataAvailable } : undefined);
+
+  const handleDoctorGenerate = async () => {
+    if (!transcription.trim()) return;
+    setIsExtracting(true);
+    setIsGenerating(true);
+    setError(null);
+    setPrescriptionHtml(null);
+    setPipelineMetrics(null);
+    setMappedDrugs([]);
+
+    try {
+      // 1. Extract
+      const startExtract = performance.now();
+      const extracted = await extractDrugs(transcription);
+      const extractTime = performance.now() - startExtract;
+
+      // 2. Map
+      const startMap = performance.now();
+      const mapped = await mapDrugsToDatabase(extracted);
+      const mapTime = performance.now() - startMap;
+      setMappedDrugs(mapped);
+
+      // 3. Generate
+      const startGen = performance.now();
+      const html = await generatePrescription(transcription, mapped);
+      const generateTime = performance.now() - startGen;
+
+      setPrescriptionHtml(html);
+      setPipelineMetrics({ extractMs: extractTime, mapMs: mapTime, generateMs: generateTime });
+    } catch (err: any) {
+      setError(err.response?.data?.error || err.message || 'Doctor Pipeline Failed');
+    } finally {
+      setIsExtracting(false);
+      setIsGenerating(false);
+    }
+  };
 
   useEffect(() => {
     getLanguages().then(setLanguages).catch(console.error);
@@ -117,7 +153,7 @@ export default function TranslatorApp() {
       const ws = new WebSocket(wsUrlStr);
       wsRef.current = ws;
 
-      const wsMode = activeTab === 'direct-sttt' ? 'translate' : 'transcribe';
+      const wsMode = 'translate';
 
       ws.onopen = () => {
         ws.send(JSON.stringify({ type: 'start', languageCode: spokenLang, mode: wsMode }));
@@ -180,7 +216,7 @@ export default function TranslatorApp() {
     setTranscription('');
     
     try {
-      const apiMode = activeTab === 'direct-sttt' ? 'translate' : 'transcribe';
+      const apiMode = 'translate';
       const result = await transcribeAudio(audioBlob, spokenLang, apiMode, (partialText) => {
         setTranscription(partialText);
       });
@@ -287,16 +323,16 @@ export default function TranslatorApp() {
 
         <div className="flex justify-center border-b border-gray-200">
           <button
-            onClick={() => { setActiveTab('two-step'); setTranscription(''); setTranslation(''); }}
-            className={`px-6 py-3 font-medium text-sm sm:text-base border-b-2 transition-colors ${activeTab === 'two-step' ? 'border-blue-600 text-blue-600' : 'border-transparent text-gray-500 hover:text-gray-700'}`}
+            onClick={() => { setActiveTab('doctor'); setTranscription(''); setTranslation(''); }}
+            className={`px-6 py-3 font-medium text-sm sm:text-base border-b-2 transition-colors ${activeTab === 'doctor' ? 'border-blue-600 text-blue-600' : 'border-transparent text-gray-500 hover:text-gray-700'}`}
           >
-            Two-Step (STT ➔ Translate)
+            Doctor Dashboard
           </button>
           <button
-            onClick={() => { setActiveTab('direct-sttt'); setTranscription(''); setTranslation(''); }}
-            className={`px-6 py-3 font-medium text-sm sm:text-base border-b-2 transition-colors ${activeTab === 'direct-sttt' ? 'border-indigo-600 text-indigo-600' : 'border-transparent text-gray-500 hover:text-gray-700'}`}
+            onClick={() => { setActiveTab('developer'); setTranscription(''); setTranslation(''); }}
+            className={`px-6 py-3 font-medium text-sm sm:text-base border-b-2 transition-colors ${activeTab === 'developer' ? 'border-indigo-600 text-indigo-600' : 'border-transparent text-gray-500 hover:text-gray-700'}`}
           >
-            Direct STTT (Sarvam Native)
+            Developer / Debug
           </button>
           <button
             onClick={() => { setActiveTab('history'); }}
@@ -374,7 +410,7 @@ export default function TranslatorApp() {
           <div className="bg-white rounded-xl shadow-md p-6 flex flex-col items-center space-y-6">
           <div className="w-full flex justify-between items-center border-b pb-4">
             <h2 className="text-xl font-medium text-gray-800">
-              1. Input Audio {activeTab === 'direct-sttt' && <span className="text-sm text-indigo-500 ml-2">(Auto-translates to English)</span>}
+              1. Input Audio <span className="text-sm text-indigo-500 ml-2">(Auto-translates to English via Sarvam)</span>
             </h2>
             <div className="flex items-center gap-4">
               <label className="flex items-center gap-2 cursor-pointer bg-blue-50 px-3 py-1.5 rounded-full border border-blue-200">
@@ -453,15 +489,15 @@ export default function TranslatorApp() {
         </div>
         )}
 
-        {/* STEP 2: TRANSCRIPTION & TRANSLATION */}
+        {/* STEP 2: TRANSCRIPTION */}
         {activeTab !== 'history' && (transcription || isTranscribing) && (
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          <div className="w-full">
             
             {/* Transcription Panel */}
-            <div className={`bg-white rounded-xl shadow-md p-6 flex flex-col h-full border-t-4 ${activeTab === 'direct-sttt' ? 'border-indigo-500 lg:col-span-2' : 'border-blue-500'}`}>
+            <div className={`bg-white rounded-xl shadow-md p-6 flex flex-col h-full border-t-4 border-indigo-500`}>
               <div className="flex justify-between items-center mb-4">
                 <h3 className="font-semibold text-lg text-gray-800">
-                  {activeTab === 'direct-sttt' ? '2. Direct English Translation (STTT)' : '2. Transcription'}
+                  2. Transcription & Translation (English)
                 </h3>
                 {transcription && (
                   <button onClick={() => copyToClipboard(transcription)} className="text-gray-500 hover:text-gray-700 flex items-center gap-1 text-sm font-medium">
@@ -470,61 +506,13 @@ export default function TranslatorApp() {
                 )}
               </div>
               <textarea
-                className={`w-full flex-grow p-4 border rounded-md resize-none min-h-[200px] ${activeTab === 'direct-sttt' ? 'focus:ring-indigo-500 focus:border-indigo-500 bg-indigo-50/30' : 'focus:ring-blue-500 focus:border-blue-500'}`}
+                className={`w-full flex-grow p-4 border rounded-md resize-none min-h-[200px] focus:ring-indigo-500 focus:border-indigo-500 bg-indigo-50/30`}
                 value={transcription}
                 onChange={(e) => setTranscription(e.target.value)}
                 placeholder={isTranscribing ? "Streaming audio to Sarvam via WebSocket... please wait." : "Result will appear here... (You can edit it)"}
                 disabled={isTranscribing && !isLiveMode}
               />
             </div>
-
-            {/* Translation Panel */}
-            {activeTab === 'two-step' && (
-              <div className="bg-white rounded-xl shadow-md p-6 flex flex-col h-full border-t-4 border-indigo-500">
-                <div className="flex flex-col mb-4 space-y-3">
-                  <div className="flex justify-between items-center">
-                    <h3 className="font-semibold text-lg text-gray-800 flex items-center gap-2">
-                      3. Translation 
-                      {translationTimeMs !== null && <span className="text-xs font-normal text-gray-500 bg-gray-100 px-2 py-0.5 rounded-full">{translationTimeMs}ms</span>}
-                    </h3>
-                    {translation && (
-                      <button onClick={() => copyToClipboard(translation)} className="text-gray-500 hover:text-gray-700 flex items-center gap-1 text-sm font-medium">
-                        <Copy className="w-4 h-4" /> Copy
-                      </button>
-                    )}
-                  </div>
-                  
-                  <div className="flex items-center gap-3 bg-indigo-50 p-3 rounded-lg border border-indigo-100">
-                    <label className="text-sm font-semibold text-indigo-900 whitespace-nowrap">Translate to:</label>
-                    <select
-                      value={targetLang}
-                      onChange={(e) => setTargetLang(e.target.value)}
-                      className="w-full rounded-md border-indigo-200 shadow-sm p-1.5 text-sm focus:border-indigo-500 focus:ring-indigo-500 bg-white"
-                    >
-                      {languages.map(l => (
-                        <option key={`tg-${l.code}`} value={l.code}>
-                          {l.name} ({l.nativeName})
-                        </option>
-                      ))}
-                    </select>
-                    <button
-                      onClick={handleTranslate}
-                      disabled={isTranslating || !transcription.trim()}
-                      className="bg-indigo-600 hover:bg-indigo-700 disabled:bg-indigo-300 text-white px-4 py-1.5 rounded-md text-sm font-medium transition-colors"
-                    >
-                      {isTranslating ? 'Translating...' : 'Translate'}
-                    </button>
-                  </div>
-                </div>
-
-                <textarea
-                  className="w-full flex-grow p-4 border rounded-md resize-none focus:ring-indigo-500 focus:border-indigo-500 min-h-[140px]"
-                  value={translation}
-                  onChange={(e) => setTranslation(e.target.value)}
-                  placeholder={isTranslating ? "Translating..." : "Translation will appear here..."}
-                />
-              </div>
-            )}
           </div>
         )}
 
@@ -535,13 +523,25 @@ export default function TranslatorApp() {
               <h2 className="text-xl font-medium text-gray-800 flex items-center gap-2">
                 💊 Prescription Generation (AI)
               </h2>
-              <button
-                onClick={handleExtractAndMap}
-                disabled={isExtracting || !transcription.trim()}
-                className="bg-teal-600 hover:bg-teal-700 disabled:bg-teal-300 text-white px-4 py-2 rounded-md font-medium transition-colors"
-              >
-                {isExtracting ? 'Extracting & Mapping...' : 'Extract Drugs & Map to DB'}
-              </button>
+              {activeTab === 'doctor' ? (
+                <button
+                  onClick={handleDoctorGenerate}
+                  disabled={isExtracting || isGenerating || !transcription.trim()}
+                  className="bg-teal-600 hover:bg-teal-700 disabled:bg-teal-300 text-white px-6 py-3 rounded-lg font-bold shadow-lg transition-colors flex items-center gap-2"
+                >
+                  {(isExtracting || isGenerating) ? (
+                    <><div className="animate-spin h-4 w-4 border-2 border-white border-t-transparent rounded-full"></div> Processing Patient...</>
+                  ) : 'Generate Digital Prescription'}
+                </button>
+              ) : (
+                <button
+                  onClick={handleExtractAndMap}
+                  disabled={isExtracting || !transcription.trim()}
+                  className="bg-teal-600 hover:bg-teal-700 disabled:bg-teal-300 text-white px-4 py-2 rounded-md font-medium transition-colors"
+                >
+                  {isExtracting ? 'Extracting & Mapping...' : '1. Extract Drugs & Map to DB'}
+                </button>
+              )}
             </div>
 
             {pipelineMetrics && (
@@ -552,7 +552,7 @@ export default function TranslatorApp() {
                 <div className="bg-teal-50 text-teal-800 px-3 py-1.5 rounded border border-teal-200">
                   <span className="font-semibold">DB Mapping:</span> {(pipelineMetrics.mapMs / 1000).toFixed(2)}s
                 </div>
-                {pipelineMetrics.generateMs && (
+                {pipelineMetrics.generateMs !== undefined && (
                   <div className="bg-teal-50 text-teal-800 px-3 py-1.5 rounded border border-teal-200">
                     <span className="font-semibold">LLM Generation:</span> {(pipelineMetrics.generateMs / 1000).toFixed(2)}s
                   </div>
@@ -563,7 +563,7 @@ export default function TranslatorApp() {
               </div>
             )}
 
-            {mappedDrugs.length > 0 && (
+            {activeTab === 'developer' && mappedDrugs.length > 0 && (
               <div className="space-y-4">
                 <h3 className="font-semibold text-gray-700">Identified Medications & Candidates:</h3>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -622,7 +622,7 @@ export default function TranslatorApp() {
                         Generating PDF Prescription...
                       </>
                     ) : (
-                      'Generate Digital Prescription'
+                      '2. Generate Digital Prescription (MedGemma AI)'
                     )}
                   </button>
                 </div>
