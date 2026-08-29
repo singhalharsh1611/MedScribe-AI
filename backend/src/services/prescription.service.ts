@@ -264,31 +264,45 @@ INSTRUCTIONS:
    - **dose**: The amount to take (e.g., "1 Tablet", "10 ml", "50 mg").
    - **route**: Infer this from the selected brand_name. If the name contains "Tablet", "Capsule", or "Suspension", set route to "Oral". If it contains "Injection", set to "Subcutaneous / IM / IV". If it contains "Cream" or "Ointment", set to "Topical".
    - **frequency**: Normalize medical abbreviations (e.g., "OD" -> "Once daily (OD)", "BD" -> "Twice daily (BD)", "TDS" -> "Three times a day (TDS)", "HS" -> "At bedtime (HS)", "QID" -> "Four times a day (QID)").
-   - **duration**: How many days/weeks to take it.
-   - **instructions**: e.g., "After meals", "Before meals".
+   - **duration**: How long to take the medication (e.g., "5 days", "1 month").
+   - **instructions**: ONLY write specific situational instructions (e.g., "After meals", "Before meals", "Take with water", "In the morning"). Do NOT write dosage like "1 tablet" here.
+5. Return the exact JSON structure below, and NOTHING else (do not include markdown ticks).
 
-OUTPUT FORMAT:
-Respond ONLY with a valid JSON object matching this schema exactly. Do NOT wrap in markdown ```json blocks.
+REQUIRED JSON FORMAT:
 {
-  "patientName": "string",
-  "age": "string",
-  "gender": "string",
-  "vitals": ["string"],
-  "chiefComplaint": ["string"],
-  "history": ["string"],
-  "prescription": [
+  "patient_name": "",
+  "patient_age": "",
+  "patient_gender": "",
+  "chief_complaint": "",
+  "hpi": "",
+  "allergies": "",
+  "past_history": "",
+  "vital_bp": "",
+  "vital_hr": "",
+  "vital_rr": "",
+  "vital_temp": "",
+  "vital_spo2": "",
+  "vital_height": "",
+  "vital_weight": "",
+  "vital_bmi": "",
+  "physical_examination": "",
+  "tests_ordered": "",
+  "key_results": "",
+  "differential_diagnosis": "",
+  "diet_lifestyle": "",
+  "activity": "",
+  "follow_up": "",
+  "emergency_precautions": "",
+  "medications": [
     {
-      "type": "medicine",
-      "brand_name": "string",
-      "dose": "string",
-      "route": "string",
-      "frequency": "string",
-      "duration": "string",
-      "instructions": "string"
+      "medicine": "Exact brand_name from mapped list or UNVERIFIED",
+      "dose": "",
+      "route": "",
+      "frequency": "",
+      "duration": "",
+      "instructions": ""
     }
-  ],
-  "advice": ["string"],
-  "followUp": "string"
+  ]
 }`;
 
     // 2. Call MedGemma
