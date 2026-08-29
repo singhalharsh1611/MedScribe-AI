@@ -41,7 +41,7 @@ export default function TranslatorApp() {
   const wsRef = useRef<WebSocket | null>(null);
   const iframeRef = useRef<HTMLIFrameElement>(null);
   
-  const [activeTab, setActiveTab] = useState<'doctor' | 'developer' | 'history'>('doctor');
+  const [activeTab, setActiveTab] = useState<'doctor' | 'developer' | 'history' | 'usage'>('doctor');
   
   const [usageStats, setUsageStats] = useState<any>({ transcriptions: [], translations: [] });
 
@@ -353,6 +353,12 @@ export default function TranslatorApp() {
           >
             Prescription History
           </button>
+          <button
+            onClick={() => { setActiveTab('usage'); }}
+            className={`px-6 py-3 font-medium text-sm sm:text-base border-b-2 transition-colors ${activeTab === 'usage' ? 'border-green-600 text-green-600' : 'border-transparent text-gray-500 hover:text-gray-700'}`}
+          >
+            Cost & Usage Logs
+          </button>
         </div>
 
         {error && (
@@ -419,7 +425,7 @@ export default function TranslatorApp() {
         )}
 
         {/* STEP 1: RECORD AUDIO */}
-        {activeTab !== 'history' && (
+        {(activeTab === 'doctor' || activeTab === 'developer') && (
           <div className="bg-white rounded-xl shadow-md p-6 flex flex-col items-center space-y-6">
           <div className="w-full flex justify-between items-center border-b pb-4">
             <h2 className="text-xl font-medium text-gray-800">
@@ -503,7 +509,7 @@ export default function TranslatorApp() {
         )}
 
         {/* STEP 2: TRANSCRIPTION */}
-        {activeTab !== 'history' && (transcription || isTranscribing) && (
+        {(activeTab === 'doctor' || activeTab === 'developer') && (transcription || isTranscribing) && (
           <div className="w-full">
             
             {/* Transcription Panel */}
@@ -530,7 +536,7 @@ export default function TranslatorApp() {
         )}
 
         {/* PRESCRIPTION PIPELINE PANEL */}
-        {activeTab !== 'history' && transcription && (
+        {(activeTab === 'doctor' || activeTab === 'developer') && transcription && (
           <div className="bg-white rounded-xl shadow-md p-6 mt-8 border-t-4 border-teal-500">
             <div className="flex justify-between items-center mb-4">
               <h2 className="text-xl font-medium text-gray-800 flex items-center gap-2">
@@ -699,7 +705,8 @@ export default function TranslatorApp() {
         )}
 
         {/* USAGE DB PANEL */}
-        <div className="bg-white rounded-xl shadow-md p-6 mt-8 border-t-4 border-green-500">
+        {activeTab === 'usage' && (
+          <div className="bg-white rounded-xl shadow-md p-6 mt-8 border-t-4 border-green-500">
           <h2 className="text-xl font-medium text-gray-800 mb-4 flex items-center gap-2">
             📊 Cost & Usage Logs
           </h2>
@@ -768,6 +775,7 @@ export default function TranslatorApp() {
             </div>
           </div>
         </div>
+        )}
 
       </div>
     </div>
