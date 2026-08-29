@@ -220,13 +220,13 @@ export const mapDrugsToDatabase = (extractedDrugs: string[]) => {
                 salt: autoPicked.salt,
                 score: autoPicked.score
             } : null,
-            top_phonetic: phoneticResults.slice(0, 2).map(r => ({
+            top_phonetic: phoneticResults.slice(0, 5).map(r => ({
                 brand_name: r.brand_name,
                 salt: r.salt,
                 match_type: r.match_type,
                 score: r.score
             })),
-            top_fuzzy: topFuzzy.slice(0, 2).map(r => ({
+            top_fuzzy: topFuzzy.slice(0, 5).map(r => ({
                 brand_name: r.brand_name,
                 salt: r.salt,
                 match_type: r.match_type,
@@ -258,7 +258,7 @@ INSTRUCTIONS:
 2. Identify the medications prescribed in the transcript.
 3. For each medication, select the **single BEST matching brand_name** from the provided "MAPPED MEDICATIONS" list. 
    - If an "auto_picked" field exists for a medication, YOU MUST strictly use the "auto_picked" brand name. Do NOT look at top_phonetic or top_fuzzy.
-   - If "auto_picked" is null, evaluate the 2 top_phonetic and 2 top_fuzzy matches provided. Pick the best one.
+   - If "auto_picked" is null, evaluate the 5 top_phonetic and 5 top_fuzzy matches provided. Pick the best one.
    - If NONE of the matches are clinically appropriate for the transcript context, or you cannot decide, you MUST output "UNVERIFIED" for that medication's brand_name so the doctor can manually intervene.
 4. Extract the following for each medication:
    - **dose**: The amount to take (e.g., "1 Tablet", "10 ml", "50 mg").
