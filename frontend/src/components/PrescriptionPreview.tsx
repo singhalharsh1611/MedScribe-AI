@@ -21,15 +21,30 @@ export function PrescriptionPreview({
     <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800/60 rounded-3xl shadow-sm shadow-slate-200/50 dark:shadow-none overflow-hidden h-[calc(100vh-10rem)] min-h-[700px] flex flex-col">
       <div className="bg-slate-50 dark:bg-slate-800/50 p-4 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between">
         <h3 className="text-sm font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">Digital Prescription</h3>
-        <button 
-          onClick={handleSavePrescription}
-          disabled={isSaving}
-          className="bg-green-600 hover:bg-green-700 disabled:opacity-50 text-white text-xs font-semibold px-4 py-2 rounded-xl shadow-sm transition-colors flex items-center gap-2"
-        >
-          {isSaving ? (
-            <><div className="animate-spin h-3 w-3 border-2 border-white/30 border-t-white rounded-full"></div> Saving...</>
-          ) : 'Save to History'}
-        </button>
+                <div className="flex items-center gap-3">
+          <button 
+            onClick={() => {
+              const printWindow = window.open('', '', 'width=900,height=700');
+              if (printWindow) {
+                printWindow.document.write(prescriptionHtml);
+                printWindow.document.close();
+                printWindow.print();
+              }
+            }}
+            className="bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 text-xs font-semibold px-4 py-2 rounded-xl shadow-sm transition-colors flex items-center gap-2"
+          >
+            Print
+          </button>
+          <button 
+            onClick={handleSavePrescription}
+            disabled={isSaving}
+            className="bg-green-600 hover:bg-green-700 disabled:opacity-50 text-white text-xs font-semibold px-4 py-2 rounded-xl shadow-sm transition-colors flex items-center gap-2"
+          >
+            {isSaving ? (
+              <><div className="animate-spin h-3 w-3 border-2 border-white/30 border-t-white rounded-full"></div> Saving...</>
+            ) : 'Save to History'}
+          </button>
+        </div>
       </div>
       
       {pipelineMetrics && (activeTab === 'doctor' || pipelineMetrics.generateMs) && (
@@ -65,6 +80,7 @@ export function PrescriptionPreview({
     </div>
   );
 }
+
 
 
 

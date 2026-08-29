@@ -84,6 +84,7 @@ export default function TranslatorApp() {
     setError(null);
     setPrescriptionHtml(null);
     setPipelineMetrics(null);
+      fetchUsageStats();
     setMappedDrugs([]);
 
     try {
@@ -157,6 +158,12 @@ export default function TranslatorApp() {
       fetchHistory();
     }
   }, [activeTab]);
+
+  useEffect(() => {
+    if (audioUrl && isLiveMode) {
+      setTimeout(fetchUsageStats, 1500);
+    }
+  }, [audioUrl, isLiveMode]);
 
   // WebSocket Live Transcription setup
   useEffect(() => {
@@ -450,5 +457,6 @@ export default function TranslatorApp() {
     </div>
   );
 }
+
 
 
