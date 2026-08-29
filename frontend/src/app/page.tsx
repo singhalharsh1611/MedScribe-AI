@@ -328,10 +328,10 @@ export default function TranslatorApp() {
         
         <div className="text-center space-y-2">
           <h1 className="text-4xl font-bold text-gray-900 flex items-center justify-center gap-3">
-            <Languages className="w-10 h-10 text-blue-600" />
-            Indian Voice Translator
+            <Activity className="w-10 h-10 text-blue-600" />
+            SleekCare AI Voice Prescription
           </h1>
-          <p className="text-gray-600 text-lg">Speak naturally. We'll transcribe and translate it.</p>
+          <p className="text-gray-600 text-lg">Speak naturally. We'll automatically transcribe, translate, and generate a digital prescription.</p>
         </div>
 
         <div className="flex justify-center border-b border-gray-200">
