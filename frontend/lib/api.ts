@@ -122,8 +122,8 @@ export const generatePrescription = async (transcript: string, mappedDrugs: any[
   return response.data; // Now returns { html, patientName, diagnosis, transcription }
 };
 
-export const savePrescription = async (html: string, patientName: string, diagnosis: string, transcription: string = '') => {
-  const response = await axios.post(`${API_BASE_URL}/prescription/save`, { html, patientName, diagnosis });
+export const savePrescription = async (html: string, patientName: string, diagnosis: string, transcription: string = '', audioUrl: string | null = null) => {
+  const response = await axios.post(`${API_BASE_URL}/prescription/save`, { html, patientName, diagnosis, transcription, audioUrl });
   return response.data;
 };
 

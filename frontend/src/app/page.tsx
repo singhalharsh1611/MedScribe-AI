@@ -217,10 +217,21 @@ export default function TranslatorApp() {
     if (audioBlob) {
       const url = URL.createObjectURL(audioBlob);
       setAudioUrl(url);
-      const handleSavePrescription = async () => {
+        const handleSavePrescription = async () => {
     try {
       setIsSaving(true);
-      await savePrescription(iframeRef.current?.contentDocument?.documentElement.outerHTML || prescriptionHtml || '', patientName, diagnosis, transcription);
+      let uploadedAudioUrl = null;
+      if (audioBlob) {
+          try {
+              const formData = new FormData();
+              formData.append('audio', audioBlob, 'recording.webm');
+              const res = await axios.post(`${process.env.NEXT_PUBLIC_API_URL}/transcribe/upload`, formData);
+              uploadedAudioUrl = res.data.audioUrl;
+          } catch(e) {
+              console.error('Failed to upload audio to cloudinary:', e);
+          }
+      }
+      await savePrescription(iframeRef.current?.contentDocument?.documentElement.outerHTML || prescriptionHtml || '', patientName, diagnosis, transcription, uploadedAudioUrl);
       fetchHistory();
     } catch (err) {
       console.error(err);
@@ -350,10 +361,21 @@ export default function TranslatorApp() {
     navigator.clipboard.writeText(text);
   };
 
-  const handleSavePrescription = async () => {
+    const handleSavePrescription = async () => {
     try {
       setIsSaving(true);
-      await savePrescription(iframeRef.current?.contentDocument?.documentElement.outerHTML || prescriptionHtml || '', patientName, diagnosis, transcription);
+      let uploadedAudioUrl = null;
+      if (audioBlob) {
+          try {
+              const formData = new FormData();
+              formData.append('audio', audioBlob, 'recording.webm');
+              const res = await axios.post(`${process.env.NEXT_PUBLIC_API_URL}/transcribe/upload`, formData);
+              uploadedAudioUrl = res.data.audioUrl;
+          } catch(e) {
+              console.error('Failed to upload audio to cloudinary:', e);
+          }
+      }
+      await savePrescription(iframeRef.current?.contentDocument?.documentElement.outerHTML || prescriptionHtml || '', patientName, diagnosis, transcription, uploadedAudioUrl);
       fetchHistory();
     } catch (err) {
       console.error(err);

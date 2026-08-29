@@ -22,6 +22,7 @@ export function UsageTab({ usageStats }: UsageTabProps) {
                 <th className="px-6 py-4">Duration</th>
                 <th className="px-6 py-4">Cost (INR)</th>
                 <th className="px-6 py-4">Preview</th>
+                <th className="px-6 py-4">Audio</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100 dark:divide-slate-800/50">
@@ -31,10 +32,11 @@ export function UsageTab({ usageStats }: UsageTabProps) {
                   <td className="px-6 py-4 text-slate-600 dark:text-slate-300">{stat.duration_seconds.toFixed(1)}s</td>
                   <td className="px-6 py-4 font-mono font-medium text-emerald-600 dark:text-emerald-400">₹{stat.cost_inr.toFixed(4)}</td>
                   <td className="px-6 py-4 text-slate-400 truncate max-w-xs">{stat.transcription_text}</td>
+                  <td className="px-6 py-4">{stat.audio_url ? <audio controls src={stat.audio_url} className="h-8 w-48" /> : null}</td>
                 </tr>
               ))}
               {(!usageStats?.transcriptions || usageStats.transcriptions.length === 0) && (
-                <tr><td colSpan={5} className="px-6 py-8 text-center text-slate-400">No records found.</td></tr>
+                <tr><td colSpan={6} className="px-6 py-8 text-center text-slate-400">No records found.</td></tr>
               )}
             </tbody>
           </table>
@@ -65,7 +67,7 @@ export function UsageTab({ usageStats }: UsageTabProps) {
                 </tr>
               ))}
               {(!usageStats?.translations || usageStats.translations.length === 0) && (
-                <tr><td colSpan={5} className="px-6 py-8 text-center text-slate-400">No records found.</td></tr>
+                <tr><td colSpan={6} className="px-6 py-8 text-center text-slate-400">No records found.</td></tr>
               )}
             </tbody>
           </table>

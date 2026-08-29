@@ -22,7 +22,7 @@ export function HistoryTab({ prescriptionHistory, viewingHistoryId, historyHtml,
             </div>
           ) : (
             prescriptionHistory.map((p) => (
-              <button
+                            <button
                 key={p.id}
                 onClick={() => loadHistoryItem(p.id)}
                 className={`w-full text-left p-4 rounded-2xl transition-all border ${
@@ -34,6 +34,18 @@ export function HistoryTab({ prescriptionHistory, viewingHistoryId, historyHtml,
                 <div className="font-semibold text-slate-900 dark:text-slate-100">{p.patient_name}</div>
                 <div className="text-xs text-slate-500 dark:text-slate-400 mt-1 mb-2">{new Date(p.timestamp).toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' })}</div>
                 <div className="text-sm text-slate-600 dark:text-slate-400 line-clamp-1">{p.diagnosis}</div>
+                
+                {p.audio_url && (
+                  <div className="mt-3 mb-2" onClick={(e) => e.stopPropagation()}>
+                    <audio controls src={p.audio_url} className="w-full h-8" />
+                  </div>
+                )}
+                
+                {p.transcription_text && (
+                  <div className="mt-2 text-xs text-slate-500 dark:text-slate-400 italic line-clamp-2 bg-slate-50 dark:bg-slate-900 p-2 rounded border border-slate-100 dark:border-slate-800">
+                    "{p.transcription_text}"
+                  </div>
+                )}
               </button>
             ))
           )}
