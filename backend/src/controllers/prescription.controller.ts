@@ -48,10 +48,10 @@ export const handleGeneratePrescription = async (req: Request, res: Response) =>
 
 export const handleSavePrescription = async (req: Request, res: Response) => {
     try {
-        const { html, patientName, diagnosis } = req.body;
+        const { html, patientName, diagnosis, transcription } = req.body;
         if (!html) return res.status(400).json({ error: 'HTML content is required' });
 
-        const id = await savePrescription(patientName, diagnosis, html);
+        const id = await savePrescription(patientName, diagnosis, html, transcription);
         res.json({ success: true, id });
     } catch (error: any) {
         console.error(error);

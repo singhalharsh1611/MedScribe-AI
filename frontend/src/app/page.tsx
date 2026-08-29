@@ -220,7 +220,7 @@ export default function TranslatorApp() {
       const handleSavePrescription = async () => {
     try {
       setIsSaving(true);
-      await savePrescription(patientName, diagnosis, iframeRef.current?.contentDocument?.documentElement.outerHTML || prescriptionHtml || '');
+      await savePrescription(iframeRef.current?.contentDocument?.documentElement.outerHTML || prescriptionHtml || '', patientName, diagnosis, transcription);
       fetchHistory();
     } catch (err) {
       console.error(err);
@@ -353,7 +353,7 @@ export default function TranslatorApp() {
   const handleSavePrescription = async () => {
     try {
       setIsSaving(true);
-      await savePrescription(patientName, diagnosis, iframeRef.current?.contentDocument?.documentElement.outerHTML || prescriptionHtml || '');
+      await savePrescription(iframeRef.current?.contentDocument?.documentElement.outerHTML || prescriptionHtml || '', patientName, diagnosis, transcription);
       fetchHistory();
     } catch (err) {
       console.error(err);

@@ -119,10 +119,10 @@ export const mapDrugsToDatabase = async (extractedDrugs: string[]): Promise<any[
 
 export const generatePrescription = async (transcript: string, mappedDrugs: any[]) => {
   const response = await axios.post(`${API_BASE_URL}/prescription/generate`, { transcript, mappedDrugs });
-  return response.data; // Now returns { html, patientName, diagnosis }
+  return response.data; // Now returns { html, patientName, diagnosis, transcription }
 };
 
-export const savePrescription = async (html: string, patientName: string, diagnosis: string) => {
+export const savePrescription = async (html: string, patientName: string, diagnosis: string, transcription: string = '') => {
   const response = await axios.post(`${API_BASE_URL}/prescription/save`, { html, patientName, diagnosis });
   return response.data;
 };

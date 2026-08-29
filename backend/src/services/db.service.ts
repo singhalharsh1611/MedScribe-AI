@@ -48,13 +48,13 @@ export const getUsageStats = async () => {
   };
 };
 
-export const savePrescription = async (patientName: string, diagnosis: string, htmlContent: string) => {
+export const savePrescription = async (patientName: string, diagnosis: string, htmlContent: string, transcriptionText: string = '') => {
   const query = `
-    INSERT INTO prescriptions (patient_name, diagnosis, html_content)
+    INSERT INTO prescriptions (patient_name, diagnosis, html_content, transcription_text)
     VALUES ($1, $2, $3) RETURNING id
   `;
   
-  const result = await pool.query(query, [patientName || 'Unknown Patient', diagnosis || 'Unknown Diagnosis', htmlContent]);
+  const result = await pool.query(query, [patientName || 'Unknown Patient', diagnosis || 'Unknown Diagnosis', htmlContent, transcriptionText]);
   return result.rows[0].id;
 };
 
@@ -66,11 +66,13 @@ export const getPrescriptions = async () => {
 };
 
 export const getPrescriptionById = async (id: number) => {
-  const query = `SELECT id, patient_name, diagnosis, html_content, (timestamp AT TIME ZONE 'UTC') as timestamp FROM prescriptions WHERE id = $1`;
+  const query = `SELECT id, patient_name, diagnosis, html_content, transcription_text, (timestamp AT TIME ZONE 'UTC') as timestamp FROM prescriptions WHERE id = $1`;
   const result = await pool.query(query, [id]);
   return result.rows[0];
 };
 
 export default pool;
+
+
 
 
