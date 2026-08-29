@@ -133,7 +133,8 @@ export const transcribeAudio = async (
   const maxAttempts = 3;
   for (let attempt = 1; attempt <= maxAttempts; attempt++) {
     try {
-      const transcript = await transcribeWebSocket(audioPath, language?.providerCode, mode, apiKey, onProgress);
+      const providerCode = languageCode === 'auto' ? 'auto' : language?.providerCode;
+      const transcript = await transcribeWebSocket(audioPath, providerCode, mode, apiKey, onProgress);
       return {
         text: transcript,
         detectedLanguage: languageCode,

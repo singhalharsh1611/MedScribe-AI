@@ -125,14 +125,15 @@ export function getDrugCache() {
 export const extractDrugs = async (transcript: string): Promise<string[]> => {
     const apiKey = process.env.DR7_API_KEY;
     const model = process.env.DR7_LLM_MODEL || 'medgemma-4b-it';
-
+    const apiUrl = process.env.DR7_API_URL || 'https://dr7.ai/api/v1/medical/chat/completions';
+    
     if (!apiKey) {
         throw new Error('DR7_API_KEY is not set in environment variables');
     }
 
     const systemPrompt = `You are a Named Entity Recognition (NER) assistant. Extract all words or phrases that sound like medication names from the text. Ignore spelling mistakes. Include the numerical dosage if it is spoken next to the medication name (e.g., 'rebeca 20mg'). Do NOT include frequency instructions like 'twice a day'. Respond ONLY with a valid JSON array of strings. Example: ["rebeca 20mg", "calvon"]`;
 
-    const response = await axios.post('https://dr7.ai/api/v1/medical/chat/completions', {
+    const response = await axios.post(apiUrl, {
         model,
         messages: [
             { role: "system", content: systemPrompt },
@@ -237,4 +238,149 @@ export const mapDrugsToDatabase = (extractedDrugs: string[]) => {
     }
 
     return mappedResults;
+};
+
+import fs from 'fs';
+
+export const generatePrescription = async (transcript: string, mappedDrugs: any[]) => {
+    console.log('[Prescription Service] Generating final prescription via MedGemma...');
+    
+    // 1. Build prompt for MedGemma
+    const prompt = `You are an expert Medical AI Prescription Writing Assistant.
+Your task is to generate a highly professional and structured clinical prescription.
+
+RAW TRANSCRIPT:
+"""${transcript}"""
+
+MAPPED MEDICATIONS (Candidates):
+${JSON.stringify(mappedDrugs, null, 2)}
+
+INSTRUCTIONS:
+1. Extract all clinical details (chief complaint, vitals, history, etc.) from the transcript. Extract Patient Name, Age, and Gender if mentioned. If something is not mentioned, use "N/A" or leave empty.
+2. Identify the medications prescribed in the transcript.
+3. For each medication, select the **single BEST matching brand_name** from the provided "MAPPED MEDICATIONS" list. You MUST strictly use the exact string from the provided candidates.
+4. Extract the following for each medication:
+   - **dose**: The amount to take (e.g., "1 Tablet", "10 ml", "50 mg").
+   - **route**: Infer this from the selected brand_name. If the name contains "Tablet", "Capsule", or "Suspension", set route to "Oral". If it contains "Injection", set to "Subcutaneous / IM / IV". If it contains "Cream" or "Ointment", set to "Topical".
+   - **frequency**: Normalize medical abbreviations (e.g., "OD" -> "Once daily (OD)", "BD" -> "Twice daily (BD)", "TDS" -> "Three times a day (TDS)", "HS" -> "At bedtime (HS)", "QID" -> "Four times a day (QID)").
+   - **duration**: How long to take the medication (e.g., "5 days", "1 month").
+   - **instructions**: ONLY write specific situational instructions (e.g., "After meals", "Before meals", "Take with water", "In the morning"). Do NOT write dosage like "1 tablet" here.
+5. Return the exact JSON structure below, and NOTHING else (do not include markdown ticks).
+
+REQUIRED JSON FORMAT:
+{
+  "patient_name": "",
+  "patient_age": "",
+  "patient_gender": "",
+  "chief_complaint": "",
+  "hpi": "",
+  "allergies": "",
+  "past_history": "",
+  "vital_bp": "",
+  "vital_hr": "",
+  "vital_rr": "",
+  "vital_temp": "",
+  "vital_spo2": "",
+  "vital_height": "",
+  "vital_weight": "",
+  "vital_bmi": "",
+  "physical_examination": "",
+  "tests_ordered": "",
+  "key_results": "",
+  "differential_diagnosis": "",
+  "diet_lifestyle": "",
+  "activity": "",
+  "follow_up": "",
+  "emergency_precautions": "",
+  "medications": [
+    {
+      "medicine": "Exact brand_name from mapped list",
+      "dose": "",
+      "route": "",
+      "frequency": "",
+      "duration": "",
+      "instructions": ""
+    }
+  ]
+}`;
+
+    // 2. Call MedGemma
+    const apiKey = process.env.DR7_API_KEY;
+    const model = process.env.DR7_LLM_MODEL || 'medgemma-4b-it';
+    const apiUrl = process.env.DR7_API_URL || 'https://dr7.ai/api/v1/medical/chat/completions';
+    
+    if (!apiKey) {
+        throw new Error('DR7_API_KEY is not set in environment variables');
+    }
+
+    let aiResponse;
+    try {
+        const res = await axios.post(apiUrl, {
+            model: model,
+            messages: [{ role: 'user', content: prompt }],
+            max_tokens: 2000,
+            temperature: 0.2
+        }, {
+            headers: {
+                'Authorization': `Bearer ${apiKey}`,
+                'Content-Type': 'application/json'
+            }
+        });
+        aiResponse = res.data.choices[0].message.content;
+    } catch (e: any) {
+        throw new Error('Failed to generate prescription with LLM: ' + (e.response?.data?.error || e.message));
+    }
+
+    // 3. Parse JSON
+    let prescriptionData;
+    try {
+        // clean markdown ticks if any
+        let cleanJson = aiResponse.replace(/```json/g, '').replace(/```/g, '').trim();
+        prescriptionData = JSON.parse(cleanJson);
+    } catch (e) {
+        throw new Error('LLM returned invalid JSON for prescription.');
+    }
+
+    // 4. Load Template
+    const templatePath = path.join(__dirname, '..', '..', 'assets', 'prescription_template.html');
+    let html = fs.readFileSync(templatePath, 'utf-8');
+
+    // 5. Replace simple tags
+    const tags = [
+        'patient_name', 'patient_age', 'patient_gender',
+        'chief_complaint', 'hpi', 'allergies', 'past_history', 
+        'vital_bp', 'vital_hr', 'vital_rr', 'vital_temp', 'vital_spo2', 
+        'vital_height', 'vital_weight', 'vital_bmi', 'physical_examination',
+        'tests_ordered', 'key_results', 'differential_diagnosis', 
+        'diet_lifestyle', 'activity', 'follow_up', 'emergency_precautions'
+    ];
+    
+    html = html.replace('{{visit_date}}', new Date().toLocaleDateString());
+
+    for (const tag of tags) {
+        const val = prescriptionData[tag] || '';
+        html = html.replace(`{{${tag}}}`, val);
+    }
+
+    // 6. Generate Medication Rows HTML
+    let medRowsHtml = '';
+    const meds = prescriptionData.medications || [];
+    for (const m of meds) {
+        medRowsHtml += `
+<tr>
+    <td><b>${m.medicine || ''}</b></td>
+    <td>${m.dose || ''}</td>
+    <td>${m.route || ''}</td>
+    <td>${m.frequency || ''}</td>
+    <td>${m.duration || ''}</td>
+    <td>${m.instructions || ''}</td>
+</tr>`;
+    }
+    html = html.replace('{{medication_rows_html}}', medRowsHtml);
+
+    return { 
+        html, 
+        patientName: prescriptionData.patient_name || 'Unknown', 
+        diagnosis: prescriptionData.final_diagnosis || prescriptionData.differential_diagnosis || 'Unknown'
+    };
 };

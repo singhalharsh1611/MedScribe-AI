@@ -1,5 +1,6 @@
 import { Request, Response } from 'express';
-import { extractDrugs, mapDrugsToDatabase } from '../services/prescription.service';
+import { extractDrugs, mapDrugsToDatabase, generatePrescription } from '../services/prescription.service';
+import { savePrescription, getPrescriptions, getPrescriptionById } from '../services/db.service';
 
 export const handleExtractDrugs = async (req: Request, res: Response) => {
     try {
@@ -26,5 +27,46 @@ export const handleMapDrugs = (req: Request, res: Response) => {
     } catch (error: any) {
         console.error(error);
         res.status(500).json({ error: error.message || 'Failed to map drugs' });
+    }
+};
+
+export const handleGeneratePrescription = async (req: Request, res: Response) => {
+    try {
+        const { transcript, mappedDrugs } = req.body;
+        if (!transcript || !mappedDrugs) {
+            return res.status(400).json({ error: 'transcript and mappedDrugs are required' });
+        }
+
+        const { html, patientName, diagnosis } = await generatePrescription(transcript, mappedDrugs);
+        
+        // Save to DB
+        savePrescription(patientName, diagnosis, html);
+
+        res.send(html);
+    } catch (error: any) {
+        console.error(error);
+        res.status(500).json({ error: error.message || 'Failed to generate prescription' });
+    }
+};
+
+export const handleGetHistory = (req: Request, res: Response) => {
+    try {
+        const history = getPrescriptions();
+        res.json({ history });
+    } catch (error: any) {
+        console.error(error);
+        res.status(500).json({ error: error.message || 'Failed to get history' });
+    }
+};
+
+export const handleGetHistoryById = (req: Request, res: Response) => {
+    try {
+        const id = parseInt(req.params.id);
+        const record = getPrescriptionById(id) as any;
+        if (!record) return res.status(404).json({ error: 'Not found' });
+        res.send(record.html_content);
+    } catch (error: any) {
+        console.error(error);
+        res.status(500).json({ error: error.message || 'Failed to get prescription' });
     }
 };

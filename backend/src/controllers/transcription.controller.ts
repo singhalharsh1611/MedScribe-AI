@@ -1,5 +1,6 @@
 import { Request, Response, NextFunction } from 'express';
 import * as fs from 'fs';
+import * as mm from 'music-metadata';
 import { transcribeAudio } from '../services/sarvam.service';
 import { logUsage } from '../services/db.service';
 
@@ -29,6 +30,16 @@ export const handleTranscription = async (req: Request, res: Response, next: Nex
   try {
     console.log(`[Transcription] Calling Sarvam STT service with file: ${file.path}`);
     
+    // Accurately measure audio duration for billing
+    let durationSeconds = 0;
+    try {
+      const metadata = await mm.parseFile(file.path);
+      durationSeconds = metadata.format.duration || (file.size / 16000); // fallback if metadata fails
+    } catch (metadataErr) {
+      console.warn(`[Transcription] Could not read audio metadata, falling back to file size:`, metadataErr);
+      durationSeconds = file.size / 16000;
+    }
+
     const onProgress = (partialText: string) => {
       res.write(`data: ${JSON.stringify({ type: 'progress', text: partialText })}\n\n`);
     };
@@ -36,9 +47,8 @@ export const handleTranscription = async (req: Request, res: Response, next: Nex
     const result = await transcribeAudio(file.path, language, mode, onProgress);
     console.log(`[Transcription] Success for language: ${language}, mode: ${mode}`);
     
-    const durationSeconds = file.size / 16000;
     const usage = logUsage(durationSeconds, `[${mode.toUpperCase()}] ` + result.text);
-    console.log(`[Usage] Logged usage: ID ${usage.id}, Cost: ₹${usage.costInr.toFixed(4)}`);
+    console.log(`[Usage] Logged usage: ID ${usage.id}, Duration: ${durationSeconds.toFixed(2)}s, Cost: ₹${usage.costInr.toFixed(4)}`);
 
     res.write(`data: ${JSON.stringify({
       type: 'done',

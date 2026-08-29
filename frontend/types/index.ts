@@ -10,6 +10,7 @@ export interface TranscriptionResponse {
   text: string;
   language: string;
   detectedLanguage?: string;
+  costInr?: number;
 }
 
 export interface TranslationResponse {

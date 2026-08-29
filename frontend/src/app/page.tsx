@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
-import { getLanguages, transcribeAudio, translateText, extractDrugs, mapDrugsToDatabase } from '../../lib/api';
+import { getLanguages, transcribeAudio, translateText, extractDrugs, mapDrugsToDatabase, generatePrescription, getPrescriptionHistory, getPrescriptionHtml } from '../../lib/api';
 import { Language } from '../../types';
 import { useAudioRecorder } from '../../hooks/use-audio-recorder';
 import { Mic, Square, Play, Copy, Upload, Trash2, Languages, Activity } from 'lucide-react';
@@ -22,15 +22,21 @@ export default function TranslatorApp() {
   
   // Prescription Pipeline State
   const [isExtracting, setIsExtracting] = useState(false);
+  const [isGenerating, setIsGenerating] = useState(false);
   const [mappedDrugs, setMappedDrugs] = useState<any[]>([]);
-  const [pipelineMetrics, setPipelineMetrics] = useState<{ extractMs: number; mapMs: number } | null>(null);
+  const [prescriptionHtml, setPrescriptionHtml] = useState<string | null>(null);
+  const [pipelineMetrics, setPipelineMetrics] = useState<{ extractMs: number; mapMs: number; generateMs?: number } | null>(null);
+
+  const [prescriptionHistory, setPrescriptionHistory] = useState<any[]>([]);
+  const [viewingHistoryId, setViewingHistoryId] = useState<number | null>(null);
+  const [historyHtml, setHistoryHtml] = useState<string | null>(null);
 
   const [error, setError] = useState<string | null>(null);
   
   const [isLiveMode, setIsLiveMode] = useState(false);
   const wsRef = useRef<WebSocket | null>(null);
   
-  const [activeTab, setActiveTab] = useState<'two-step' | 'direct-sttt'>('two-step');
+  const [activeTab, setActiveTab] = useState<'two-step' | 'direct-sttt' | 'history'>('two-step');
   
   const [usageStats, setUsageStats] = useState<any>({ transcriptions: [], translations: [] });
 
@@ -59,18 +65,43 @@ export default function TranslatorApp() {
 
   useEffect(() => {
     getLanguages().then(setLanguages).catch(console.error);
-    fetchUsage();
+    fetchUsageStats();
   }, []);
 
-  const fetchUsage = async () => {
+  const fetchUsageStats = async () => {
     try {
-      const apiUrl = process.env.NEXT_PUBLIC_API_URL || (typeof window !== 'undefined' ? `http://${window.location.hostname}:3001/api` : 'http://localhost:3001/api');
-      const res = await axios.get(`${apiUrl}/usage`);
-      setUsageStats(res.data);
-    } catch(e) {
-      console.error(e);
+      const response = await axios.get('http://localhost:3001/api/usage');
+      setUsageStats(response.data);
+    } catch (error) {
+      console.error('Failed to fetch usage stats', error);
     }
   };
+
+  const fetchHistory = async () => {
+    try {
+      const data = await getPrescriptionHistory();
+      setPrescriptionHistory(data);
+    } catch (err) {
+      console.error('Failed to fetch history', err);
+    }
+  };
+
+  const loadHistoryItem = async (id: number) => {
+    try {
+      setHistoryHtml(null);
+      setViewingHistoryId(id);
+      const html = await getPrescriptionHtml(id);
+      setHistoryHtml(html);
+    } catch (err) {
+      console.error('Failed to load prescription HTML', err);
+    }
+  };
+
+  useEffect(() => {
+    if (activeTab === 'history') {
+      fetchHistory();
+    }
+  }, [activeTab]);
 
   // WebSocket Live Transcription setup
   useEffect(() => {
@@ -109,7 +140,7 @@ export default function TranslatorApp() {
         isBackendReadyRef.current = false;
         pendingAudioRef.current = [];
         setIsTranscribing(false);
-        fetchUsage(); // Refresh usage when done
+        fetchUsageStats(); // Refresh usage when done
       };
     } else {
       if (wsRef.current) {
@@ -154,7 +185,7 @@ export default function TranslatorApp() {
         setTranscription(partialText);
       });
       setTranscription(result.text);
-      fetchUsage();
+      fetchUsageStats();
     } catch (err: any) {
       setError(err.message || 'Transcription failed.');
     } finally {
@@ -175,7 +206,7 @@ export default function TranslatorApp() {
       if (result.translationTimeMs) {
         setTranslationTimeMs(result.translationTimeMs);
       }
-      fetchUsage();
+      fetchUsageStats();
     } catch (err: any) {
       setError(err.response?.data?.message || 'Translation failed.');
     } finally {
@@ -208,11 +239,33 @@ export default function TranslatorApp() {
       const mapTime = performance.now() - startMap;
 
       setMappedDrugs(mapped);
+      setPrescriptionHtml(null);
       setPipelineMetrics({ extractMs: extractTime, mapMs: mapTime });
     } catch (err: any) {
       setError(err.response?.data?.error || err.message || 'Failed to extract and map drugs.');
     } finally {
       setIsExtracting(false);
+    }
+  };
+
+  const handleGenerate = async () => {
+    if (!transcription.trim() || mappedDrugs.length === 0) return;
+    setIsGenerating(true);
+    setError(null);
+
+    try {
+      const startGen = performance.now();
+      // Import the api dynamically or from top level (already imported at top of file hopefully)
+      // I will assume generatePrescription is exported from @/lib/api
+      const html = await generatePrescription(transcription, mappedDrugs);
+      const generateTime = performance.now() - startGen;
+
+      setPrescriptionHtml(html);
+      setPipelineMetrics(prev => prev ? { ...prev, generateMs: generateTime } : null);
+    } catch (err: any) {
+      setError(err.response?.data?.error || err.message || 'Failed to generate prescription.');
+    } finally {
+      setIsGenerating(false);
     }
   };
 
@@ -245,6 +298,12 @@ export default function TranslatorApp() {
           >
             Direct STTT (Sarvam Native)
           </button>
+          <button
+            onClick={() => { setActiveTab('history'); }}
+            className={`px-6 py-3 font-medium text-sm sm:text-base border-b-2 transition-colors ${activeTab === 'history' ? 'border-teal-600 text-teal-600' : 'border-transparent text-gray-500 hover:text-gray-700'}`}
+          >
+            Prescription History
+          </button>
         </div>
 
         {error && (
@@ -253,8 +312,66 @@ export default function TranslatorApp() {
           </div>
         )}
 
+        {/* HISTORY TAB */}
+        {activeTab === 'history' && (
+          <div className="bg-white rounded-xl shadow-md p-6 flex flex-col h-[800px]">
+            <h2 className="text-xl font-medium text-gray-800 border-b pb-4 mb-4">Past Prescriptions</h2>
+            <div className="flex gap-6 h-full">
+              <div className="w-1/3 border-r pr-4 overflow-y-auto space-y-3">
+                {prescriptionHistory.length === 0 ? (
+                  <p className="text-gray-500 italic text-sm">No prescriptions generated yet.</p>
+                ) : (
+                  prescriptionHistory.map((p) => (
+                    <button
+                      key={p.id}
+                      onClick={() => loadHistoryItem(p.id)}
+                      className={`w-full text-left p-4 border rounded-lg hover:bg-teal-50 transition-colors ${viewingHistoryId === p.id ? 'border-teal-500 bg-teal-50 ring-1 ring-teal-500' : 'border-gray-200'}`}
+                    >
+                      <div className="font-semibold text-gray-800">{p.patient_name}</div>
+                      <div className="text-xs text-gray-500 mb-1">{new Date(p.timestamp).toLocaleString()}</div>
+                      <div className="text-sm text-gray-600 truncate">{p.diagnosis}</div>
+                    </button>
+                  ))
+                )}
+              </div>
+              <div className="w-2/3 h-full">
+                {historyHtml ? (
+                  <div className="w-full h-full border border-gray-300 rounded-lg overflow-hidden bg-white shadow-inner relative">
+                    <button 
+                      onClick={() => {
+                        const printWindow = window.open('', '', 'width=900,height=700');
+                        printWindow?.document.write(historyHtml);
+                        printWindow?.document.close();
+                        printWindow?.focus();
+                        setTimeout(() => printWindow?.print(), 250);
+                      }}
+                      className="absolute top-2 right-2 bg-gray-800 text-white text-xs px-3 py-1.5 rounded shadow hover:bg-gray-700 transition z-10"
+                    >
+                      Print / PDF
+                    </button>
+                    <iframe 
+                      srcDoc={historyHtml} 
+                      className="w-full h-full border-none"
+                      title="Past Prescription"
+                    />
+                  </div>
+                ) : viewingHistoryId ? (
+                  <div className="w-full h-full flex items-center justify-center text-gray-500">
+                    <div className="animate-spin h-8 w-8 border-4 border-teal-500 border-t-transparent rounded-full"></div>
+                  </div>
+                ) : (
+                  <div className="w-full h-full flex items-center justify-center text-gray-400 bg-gray-50 rounded-lg border border-dashed border-gray-300">
+                    Select a prescription from the list to view
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        )}
+
         {/* STEP 1: RECORD AUDIO */}
-        <div className="bg-white rounded-xl shadow-md p-6 flex flex-col items-center space-y-6">
+        {activeTab !== 'history' && (
+          <div className="bg-white rounded-xl shadow-md p-6 flex flex-col items-center space-y-6">
           <div className="w-full flex justify-between items-center border-b pb-4">
             <h2 className="text-xl font-medium text-gray-800">
               1. Input Audio {activeTab === 'direct-sttt' && <span className="text-sm text-indigo-500 ml-2">(Auto-translates to English)</span>}
@@ -334,9 +451,10 @@ export default function TranslatorApp() {
             </div>
           )}
         </div>
+        )}
 
         {/* STEP 2: TRANSCRIPTION & TRANSLATION */}
-        {(transcription || isTranscribing) && (
+        {activeTab !== 'history' && (transcription || isTranscribing) && (
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
             
             {/* Transcription Panel */}
@@ -411,7 +529,7 @@ export default function TranslatorApp() {
         )}
 
         {/* PRESCRIPTION PIPELINE PANEL */}
-        {transcription && (
+        {activeTab !== 'history' && transcription && (
           <div className="bg-white rounded-xl shadow-md p-6 mt-8 border-t-4 border-teal-500">
             <div className="flex justify-between items-center mb-4">
               <h2 className="text-xl font-medium text-gray-800 flex items-center gap-2">
@@ -427,15 +545,20 @@ export default function TranslatorApp() {
             </div>
 
             {pipelineMetrics && (
-              <div className="flex gap-4 mb-4 text-xs">
+              <div className="flex gap-4 mb-4 text-xs flex-wrap">
                 <div className="bg-teal-50 text-teal-800 px-3 py-1.5 rounded border border-teal-200">
-                  <span className="font-semibold">LLM Extraction Time:</span> {(pipelineMetrics.extractMs / 1000).toFixed(2)}s
+                  <span className="font-semibold">LLM Extraction:</span> {(pipelineMetrics.extractMs / 1000).toFixed(2)}s
                 </div>
                 <div className="bg-teal-50 text-teal-800 px-3 py-1.5 rounded border border-teal-200">
-                  <span className="font-semibold">DB Mapping Time:</span> {(pipelineMetrics.mapMs / 1000).toFixed(2)}s
+                  <span className="font-semibold">DB Mapping:</span> {(pipelineMetrics.mapMs / 1000).toFixed(2)}s
                 </div>
+                {pipelineMetrics.generateMs && (
+                  <div className="bg-teal-50 text-teal-800 px-3 py-1.5 rounded border border-teal-200">
+                    <span className="font-semibold">LLM Generation:</span> {(pipelineMetrics.generateMs / 1000).toFixed(2)}s
+                  </div>
+                )}
                 <div className="bg-teal-100 text-teal-900 px-3 py-1.5 rounded border border-teal-300 font-bold">
-                  <span>Total Pipeline:</span> {((pipelineMetrics.extractMs + pipelineMetrics.mapMs) / 1000).toFixed(2)}s
+                  <span>Total Pipeline:</span> {((pipelineMetrics.extractMs + pipelineMetrics.mapMs + (pipelineMetrics.generateMs || 0)) / 1000).toFixed(2)}s
                 </div>
               </div>
             )}
@@ -486,6 +609,50 @@ export default function TranslatorApp() {
                     </div>
                   ))}
                 </div>
+
+                <div className="mt-8 flex justify-center">
+                  <button
+                    onClick={handleGenerate}
+                    disabled={isGenerating}
+                    className="bg-blue-600 hover:bg-blue-700 text-white font-semibold py-3 px-8 rounded-lg shadow-md transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+                  >
+                    {isGenerating ? (
+                      <>
+                        <div className="animate-spin h-5 w-5 border-2 border-white border-t-transparent rounded-full"></div>
+                        Generating PDF Prescription...
+                      </>
+                    ) : (
+                      'Generate Digital Prescription'
+                    )}
+                  </button>
+                </div>
+
+                {prescriptionHtml && (
+                  <div className="mt-8 border-t pt-8">
+                    <h3 className="font-semibold text-gray-700 mb-4 flex items-center justify-between">
+                      Final Digital Prescription
+                      <button 
+                        onClick={() => {
+                          const printWindow = window.open('', '', 'width=900,height=700');
+                          printWindow?.document.write(prescriptionHtml);
+                          printWindow?.document.close();
+                          printWindow?.focus();
+                          setTimeout(() => printWindow?.print(), 250);
+                        }}
+                        className="bg-gray-800 text-white text-sm px-4 py-2 rounded shadow hover:bg-gray-700 transition"
+                      >
+                        Print / Save PDF
+                      </button>
+                    </h3>
+                    <div className="border border-gray-300 rounded-lg overflow-hidden bg-white shadow-inner" style={{ height: '800px' }}>
+                      <iframe 
+                        srcDoc={prescriptionHtml} 
+                        className="w-full h-full border-none"
+                        title="Prescription Preview"
+                      />
+                    </div>
+                  </div>
+                )}
               </div>
             )}
           </div>

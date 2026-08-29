@@ -71,6 +71,7 @@ export const transcribeAudio = (
               } else if (data.type === 'done') {
                 resolve({
                   text: data.text,
+                  language: data.language || 'en',
                   detectedLanguage: data.detectedLanguage,
                   costInr: data.costInr
                 });
@@ -114,4 +115,19 @@ export const extractDrugs = async (transcript: string): Promise<string[]> => {
 export const mapDrugsToDatabase = async (extractedDrugs: string[]): Promise<any[]> => {
   const response = await axios.post(`${API_BASE_URL}/prescription/map`, { extractedDrugs });
   return response.data.mapped;
+};
+
+export const generatePrescription = async (transcript: string, mappedDrugs: any[]) => {
+  const response = await axios.post(`${API_BASE_URL}/prescription/generate`, { transcript, mappedDrugs });
+  return response.data; // This is the HTML string
+};
+
+export const getPrescriptionHistory = async () => {
+  const response = await axios.get(`${API_BASE_URL}/prescription/history`);
+  return response.data.history;
+};
+
+export const getPrescriptionHtml = async (id: number) => {
+  const response = await axios.get(`${API_BASE_URL}/prescription/history/${id}`);
+  return response.data; // HTML string
 };

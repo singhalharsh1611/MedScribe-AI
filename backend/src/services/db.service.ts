@@ -23,6 +23,14 @@ db.exec(`
     text_length INTEGER,
     translation_time_ms REAL
   );
+
+  CREATE TABLE IF NOT EXISTS prescriptions (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    timestamp DATETIME DEFAULT CURRENT_TIMESTAMP,
+    patient_name TEXT,
+    diagnosis TEXT,
+    html_content TEXT
+  );
 `);
 
 export const logUsage = (durationSeconds: number, transcriptionText: string) => {
@@ -56,4 +64,25 @@ export const getUsageStats = () => {
     transcriptions: usageStmt.all(),
     translations: translationStmt.all()
   };
+};
+
+export const savePrescription = (patientName: string, diagnosis: string, htmlContent: string) => {
+  const stmt = db.prepare(`
+    INSERT INTO prescriptions (patient_name, diagnosis, html_content, timestamp)
+    VALUES (?, ?, ?, DATETIME('now', '+5 hours', '+30 minutes'))
+  `);
+  
+  const result = stmt.run(patientName || 'Unknown Patient', diagnosis || 'Unknown Diagnosis', htmlContent);
+  return result.lastInsertRowid;
+};
+
+export const getPrescriptions = () => {
+  // Return without html_content for the list view to save bandwidth
+  const stmt = db.prepare(`SELECT id, timestamp, patient_name, diagnosis FROM prescriptions ORDER BY timestamp DESC`);
+  return stmt.all();
+};
+
+export const getPrescriptionById = (id: number) => {
+  const stmt = db.prepare(`SELECT * FROM prescriptions WHERE id = ?`);
+  return stmt.get(id);
 };
