@@ -16,11 +16,11 @@ pool.query('SELECT NOW()', (err) => {
 });
 
 export const logUsage = async (durationSeconds: number, transcriptionText: string) => {
-  // Sarvam API pricing: ₹130.00 per hour
-  const costInr = (durationSeconds / 3600) * 130.00;
+  // Sarvam STT Streaming API pricing: ₹30.00 per hour
+  const costInr = (durationSeconds / 3600) * 30.00;
   
   const query = `
-    INSERT INTO usage (duration_seconds, cost_inr, transcription_text, timestamp) VALUES ($1, $2, $3, CURRENT_TIMESTAMP AT TIME ZONE 'UTC' AT TIME ZONE 'Asia/Kolkata') RETURNING id
+    INSERT INTO usage (duration_seconds, cost_inr, transcription_text, timestamp) VALUES ($1, $2, $3, $4, CURRENT_TIMESTAMP AT TIME ZONE 'UTC' AT TIME ZONE 'Asia/Kolkata', $5) RETURNING id
   `;
   
   const result = await pool.query(query, [durationSeconds, costInr, transcriptionText]);
@@ -28,17 +28,18 @@ export const logUsage = async (durationSeconds: number, transcriptionText: strin
 };
 
 export const logTranslation = async (sourceLanguage: string, targetLanguage: string, textLength: number, translationTimeMs: number) => {
+  const costInr = (textLength / 1000) * 2.00;
   const query = `
-    INSERT INTO translation_logs (source_language, target_language, text_length, translation_time_ms, timestamp) VALUES ($1, $2, $3, $4, CURRENT_TIMESTAMP AT TIME ZONE 'UTC' AT TIME ZONE 'Asia/Kolkata') RETURNING id
+    INSERT INTO translation_logs (source_language, target_language, text_length, translation_time_ms, timestamp, cost_inr) VALUES ($1, $2, $3, $4, CURRENT_TIMESTAMP AT TIME ZONE 'UTC' AT TIME ZONE 'Asia/Kolkata') RETURNING id
   `;
   
-  const result = await pool.query(query, [sourceLanguage, targetLanguage, textLength, translationTimeMs]);
+  const result = await pool.query(query, [sourceLanguage, targetLanguage, textLength, translationTimeMs, costInr]);
   return result.rows[0].id;
 };
 
 export const getUsageStats = async () => {
   const usageResult = await pool.query(`SELECT id, duration_seconds, cost_inr, transcription_text, timestamp FROM usage ORDER BY timestamp DESC LIMIT 50`);
-  const translationResult = await pool.query(`SELECT id, source_language, target_language, text_length, translation_time_ms, timestamp FROM translation_logs ORDER BY timestamp DESC LIMIT 50`);
+  const translationResult = await pool.query(`SELECT id, source_language, target_language, text_length, translation_time_ms, timestamp, cost_inr FROM translation_logs ORDER BY timestamp DESC LIMIT 50`);
   
   return {
     transcriptions: usageResult.rows,
