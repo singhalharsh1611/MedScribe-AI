@@ -6,6 +6,7 @@ import { Language } from '../../types';
 import { useAudioRecorder } from '../../hooks/use-audio-recorder';
 import { Mic, Square, Play, Copy, Upload, Trash2, Languages, Activity } from 'lucide-react';
 import axios from 'axios';
+import { ModeToggle } from '../components/mode-toggle';
 
 export default function TranslatorApp() {
   const [languages, setLanguages] = useState<Language[]>([]);
@@ -323,75 +324,81 @@ export default function TranslatorApp() {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50 text-gray-900 py-10 px-4 sm:px-6 lg:px-8">
-      <div className="max-w-4xl mx-auto space-y-8">
+    <div className="min-h-screen bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100 py-10 px-4 sm:px-6 lg:px-8 transition-colors duration-300">
+      <div className="max-w-5xl mx-auto space-y-8 relative">
         
-        <div className="text-center space-y-2">
-          <h1 className="text-4xl font-bold text-gray-900 flex items-center justify-center gap-3">
-            <Activity className="w-10 h-10 text-blue-600" />
-            SleekCare AI Voice Prescription
-          </h1>
-          <p className="text-gray-600 text-lg">Speak naturally. We'll automatically transcribe, translate, and generate a digital prescription.</p>
+        <div className="absolute top-0 right-0">
+          <ModeToggle />
         </div>
 
-        <div className="flex justify-center border-b border-gray-200">
+        <div className="text-center space-y-3 pt-4">
+          <h1 className="text-4xl md:text-5xl font-extrabold text-slate-900 dark:text-white flex items-center justify-center gap-3 tracking-tight">
+            <Activity className="w-10 h-10 md:w-12 md:h-12 text-blue-600 dark:text-blue-500" />
+            SleekCare AI
+          </h1>
+          <p className="text-slate-600 dark:text-slate-400 text-lg md:text-xl font-medium max-w-2xl mx-auto">
+            Speak naturally to dictate your consultation. We automatically transcribe, extract, and generate clinical digital prescriptions.
+          </p>
+        </div>
+
+        <div className="flex justify-center border-b border-slate-200 dark:border-slate-800">
           <button
             onClick={() => { setActiveTab('doctor'); setTranscription(''); setTranslation(''); }}
-            className={`px-6 py-3 font-medium text-sm sm:text-base border-b-2 transition-colors ${activeTab === 'doctor' ? 'border-blue-600 text-blue-600' : 'border-transparent text-gray-500 hover:text-gray-700'}`}
+            className={`px-6 py-3 font-medium text-sm sm:text-base border-b-2 transition-colors ${activeTab === 'doctor' ? 'border-blue-600 text-blue-600 dark:text-blue-400' : 'border-transparent text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200'}`}
           >
             Doctor Dashboard
           </button>
           <button
             onClick={() => { setActiveTab('developer'); setTranscription(''); setTranslation(''); }}
-            className={`px-6 py-3 font-medium text-sm sm:text-base border-b-2 transition-colors ${activeTab === 'developer' ? 'border-indigo-600 text-indigo-600' : 'border-transparent text-gray-500 hover:text-gray-700'}`}
+            className={`px-6 py-3 font-medium text-sm sm:text-base border-b-2 transition-colors ${activeTab === 'developer' ? 'border-indigo-600 text-indigo-600 dark:text-indigo-400' : 'border-transparent text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200'}`}
           >
             Developer / Debug
           </button>
           <button
             onClick={() => { setActiveTab('history'); }}
-            className={`px-6 py-3 font-medium text-sm sm:text-base border-b-2 transition-colors ${activeTab === 'history' ? 'border-teal-600 text-teal-600' : 'border-transparent text-gray-500 hover:text-gray-700'}`}
+            className={`px-6 py-3 font-medium text-sm sm:text-base border-b-2 transition-colors ${activeTab === 'history' ? 'border-teal-600 text-teal-600 dark:text-teal-400' : 'border-transparent text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200'}`}
           >
             Prescription History
           </button>
           <button
             onClick={() => { setActiveTab('usage'); }}
-            className={`px-6 py-3 font-medium text-sm sm:text-base border-b-2 transition-colors ${activeTab === 'usage' ? 'border-green-600 text-green-600' : 'border-transparent text-gray-500 hover:text-gray-700'}`}
+            className={`px-6 py-3 font-medium text-sm sm:text-base border-b-2 transition-colors ${activeTab === 'usage' ? 'border-green-600 text-green-600 dark:text-green-400' : 'border-transparent text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200'}`}
           >
             Cost & Usage Logs
           </button>
         </div>
 
         {error && (
-          <div className="bg-red-50 border-l-4 border-red-500 p-4 rounded shadow-sm">
-            <p className="text-sm text-red-700 font-medium">{error}</p>
+          <div className="bg-red-50 dark:bg-red-900/20 border-l-4 border-red-500 p-4 rounded shadow-sm">
+            <p className="text-sm text-red-700 dark:text-red-400 font-medium">{error}</p>
           </div>
         )}
 
         {/* HISTORY TAB */}
         {activeTab === 'history' && (
-          <div className="bg-white rounded-xl shadow-md p-6 flex flex-col h-[800px]">
-            <h2 className="text-xl font-medium text-gray-800 border-b pb-4 mb-4">Past Prescriptions</h2>
+          <div className="bg-white dark:bg-slate-900/80 dark:backdrop-blur-sm rounded-xl shadow-md dark:shadow-none dark:ring-1 dark:ring-white/10 p-6 flex flex-col h-[800px]">
+            <h2 className="text-xl font-medium text-slate-800 dark:text-slate-200 border-b border-slate-200 dark:border-slate-800 pb-4 mb-4">Past Prescriptions</h2>
             <div className="flex gap-6 h-full">
-              <div className="w-1/3 border-r pr-4 overflow-y-auto space-y-3">
+              <div className="w-1/3 border-r border-slate-200 dark:border-slate-800 pr-4 overflow-y-auto space-y-3">
                 {prescriptionHistory.length === 0 ? (
-                  <p className="text-gray-500 italic text-sm">No prescriptions generated yet.</p>
+                  <p className="text-slate-500 dark:text-slate-400 italic text-sm">No prescriptions generated yet.</p>
                 ) : (
                   prescriptionHistory.map((p) => (
                     <button
                       key={p.id}
                       onClick={() => loadHistoryItem(p.id)}
-                      className={`w-full text-left p-4 border rounded-lg hover:bg-teal-50 transition-colors ${viewingHistoryId === p.id ? 'border-teal-500 bg-teal-50 ring-1 ring-teal-500' : 'border-gray-200'}`}
+                      className={`w-full text-left p-4 border rounded-lg hover:bg-teal-50 dark:bg-teal-900/20 transition-colors ${viewingHistoryId === p.id ? 'border-teal-500 bg-teal-50 dark:bg-teal-900/20 ring-1 ring-teal-500' : 'border-slate-200 dark:border-slate-800'}`}
                     >
-                      <div className="font-semibold text-gray-800">{p.patient_name}</div>
-                      <div className="text-xs text-gray-500 mb-1">{new Date(p.timestamp).toLocaleString()}</div>
-                      <div className="text-sm text-gray-600 truncate">{p.diagnosis}</div>
+                      <div className="font-semibold text-slate-800 dark:text-slate-200">{p.patient_name}</div>
+                      <div className="text-xs text-slate-500 dark:text-slate-400 mb-1">{new Date(p.timestamp).toLocaleString()}</div>
+                      <div className="text-sm text-slate-600 dark:text-slate-400 truncate">{p.diagnosis}</div>
                     </button>
                   ))
                 )}
               </div>
               <div className="w-2/3 h-full">
                 {historyHtml ? (
-                  <div className="w-full h-full border border-gray-300 rounded-lg overflow-hidden bg-white shadow-inner relative">
+                  <div className="w-full h-full border border-slate-300 dark:border-slate-700 rounded-lg overflow-hidden bg-white dark:bg-slate-900/80 dark:backdrop-blur-sm shadow-inner relative">
                     <button 
                       onClick={() => {
                         const printWindow = window.open('', '', 'width=900,height=700');
@@ -400,7 +407,7 @@ export default function TranslatorApp() {
                         printWindow?.focus();
                         setTimeout(() => printWindow?.print(), 250);
                       }}
-                      className="absolute top-2 right-2 bg-gray-800 text-white text-xs px-3 py-1.5 rounded shadow hover:bg-gray-700 transition z-10"
+                      className="absolute top-2 right-2 bg-slate-800 dark:bg-slate-700 text-white text-xs px-3 py-1.5 rounded shadow hover:bg-gray-700 transition z-10"
                     >
                       Print / PDF
                     </button>
@@ -411,11 +418,11 @@ export default function TranslatorApp() {
                     />
                   </div>
                 ) : viewingHistoryId ? (
-                  <div className="w-full h-full flex items-center justify-center text-gray-500">
+                  <div className="w-full h-full flex items-center justify-center text-slate-500 dark:text-slate-400">
                     <div className="animate-spin h-8 w-8 border-4 border-teal-500 border-t-transparent rounded-full"></div>
                   </div>
                 ) : (
-                  <div className="w-full h-full flex items-center justify-center text-gray-400 bg-gray-50 rounded-lg border border-dashed border-gray-300">
+                  <div className="w-full h-full flex items-center justify-center text-gray-400 bg-slate-50 dark:bg-slate-800/50 rounded-lg border border-dashed border-slate-300 dark:border-slate-700">
                     Select a prescription from the list to view
                   </div>
                 )}
@@ -426,23 +433,23 @@ export default function TranslatorApp() {
 
         {/* STEP 1: RECORD AUDIO */}
         {(activeTab === 'doctor' || activeTab === 'developer') && (
-          <div className="bg-white rounded-xl shadow-md p-6 flex flex-col items-center space-y-6">
-          <div className="w-full flex justify-between items-center border-b pb-4">
-            <h2 className="text-xl font-medium text-gray-800">
+          <div className="bg-white dark:bg-slate-900/80 dark:backdrop-blur-sm rounded-xl shadow-md dark:shadow-none dark:ring-1 dark:ring-white/10 p-6 flex flex-col items-center space-y-6">
+          <div className="w-full flex justify-between items-center border-b border-slate-200 dark:border-slate-800 pb-4">
+            <h2 className="text-xl font-medium text-slate-800 dark:text-slate-200">
               1. Input Audio <span className="text-sm text-indigo-500 ml-2">(Auto-translates to English)</span>
             </h2>
             <div className="flex items-center gap-4">
-              <label className="flex items-center gap-2 cursor-pointer bg-blue-50 px-3 py-1.5 rounded-full border border-blue-200">
+              <label className="flex items-center gap-2 cursor-pointer bg-blue-50 dark:bg-blue-900/20 px-3 py-1.5 rounded-full border border-blue-200">
                 <input type="checkbox" checked={isLiveMode} onChange={(e) => setIsLiveMode(e.target.checked)} className="rounded text-blue-600 focus:ring-blue-500"/>
-                <span className="text-sm font-semibold text-blue-800 flex items-center gap-1"><Activity className="w-4 h-4"/> Live Transcription</span>
+                <span className="text-sm font-semibold text-blue-800 dark:text-blue-300 flex items-center gap-1"><Activity className="w-4 h-4"/> Live Transcription</span>
               </label>
               
               <div className="flex items-center gap-2">
-                <label className="text-sm font-semibold text-gray-600">Spoken Language:</label>
+                <label className="text-sm font-semibold text-slate-600 dark:text-slate-400">Spoken Language:</label>
                 <select
                   value={spokenLang}
                   onChange={(e) => setSpokenLang(e.target.value)}
-                  className="rounded-md border-gray-300 shadow-sm p-1.5 text-sm border focus:border-blue-500 focus:ring-blue-500 bg-white"
+                  className="rounded-md border-slate-300 dark:border-slate-700 shadow-sm p-1.5 text-sm border focus:border-blue-500 focus:ring-blue-500 bg-white dark:bg-slate-900/80 dark:backdrop-blur-sm"
                 >
                   <option value="auto">Auto-Detect Language</option>
                   {languages.map(l => (
@@ -459,14 +466,14 @@ export default function TranslatorApp() {
             {!isRecording ? (
               <button
                 onClick={() => { setTranscription(''); startRecording(); }}
-                className="flex items-center gap-2 bg-red-500 hover:bg-red-600 text-white px-6 py-3 rounded-full font-medium transition-colors shadow-sm"
+                className="flex items-center gap-2 bg-red-50 dark:bg-red-900/20 hover:bg-red-600 hover:text-white text-red-600 dark:text-red-400 px-6 py-3 rounded-full font-medium transition-colors shadow-sm"
               >
                 <Mic className="w-5 h-5" /> Start Recording
               </button>
             ) : (
               <button
                 onClick={stopRecording}
-                className="flex items-center gap-2 bg-gray-800 hover:bg-gray-900 text-white px-6 py-3 rounded-full font-medium transition-colors animate-pulse shadow-sm"
+                className="flex items-center gap-2 bg-slate-800 dark:bg-slate-700 hover:bg-gray-900 text-white px-6 py-3 rounded-full font-medium transition-colors animate-pulse shadow-sm"
               >
                 <Square className="w-5 h-5" /> Stop Recording
               </button>
@@ -474,8 +481,8 @@ export default function TranslatorApp() {
 
             {!isLiveMode && (
               <>
-                <div className="flex items-center text-gray-500 px-2 font-medium">OR</div>
-                <label className="flex items-center gap-2 bg-white border-2 border-gray-200 hover:border-gray-300 hover:bg-gray-50 text-gray-700 px-6 py-3 rounded-full font-medium cursor-pointer transition-colors shadow-sm">
+                <div className="flex items-center text-slate-500 dark:text-slate-400 px-2 font-medium">OR</div>
+                <label className="flex items-center gap-2 bg-white dark:bg-slate-900/80 dark:backdrop-blur-sm border-2 border-slate-200 dark:border-slate-800 hover:border-slate-300 dark:border-slate-700 hover:bg-slate-50 dark:bg-slate-800/50 text-slate-700 dark:text-slate-300 px-6 py-3 rounded-full font-medium cursor-pointer transition-colors shadow-sm">
                   <Upload className="w-5 h-5" />
                   Upload Audio
                   <input type="file" accept="audio/*" className="hidden" onChange={handleFileUpload} />
@@ -485,13 +492,13 @@ export default function TranslatorApp() {
           </div>
 
           {!isLiveMode && audioUrl && (
-            <div className="w-full max-w-md bg-gray-50 rounded-lg p-4 flex flex-col items-center gap-4 border mt-4">
-              <span className="text-sm font-medium text-gray-600">Audio Ready</span>
+            <div className="w-full max-w-md bg-slate-50 dark:bg-slate-800/50 rounded-lg p-4 flex flex-col items-center gap-4 border mt-4">
+              <span className="text-sm font-medium text-slate-600 dark:text-slate-400">Audio Ready</span>
               <audio src={audioUrl} controls className="w-full h-10" />
               <div className="flex gap-4 w-full justify-center">
                 <button
                   onClick={clearAudio}
-                  className="text-red-500 hover:text-red-700 text-sm flex items-center gap-1 font-medium"
+                  className="text-red-500 hover:text-red-700 dark:text-red-400 text-sm flex items-center gap-1 font-medium"
                 >
                   <Trash2 className="w-4 h-4" /> Remove
                 </button>
@@ -513,19 +520,19 @@ export default function TranslatorApp() {
           <div className="w-full">
             
             {/* Transcription Panel */}
-            <div className={`bg-white rounded-xl shadow-md p-6 flex flex-col h-full border-t-4 border-indigo-500`}>
+            <div className={`bg-white dark:bg-slate-900/80 dark:backdrop-blur-sm rounded-xl shadow-md dark:shadow-none dark:ring-1 dark:ring-white/10 p-6 flex flex-col h-full border-t-4 border-indigo-500`}>
               <div className="flex justify-between items-center mb-4">
-                <h3 className="font-semibold text-lg text-gray-800">
+                <h3 className="font-semibold text-lg text-slate-800 dark:text-slate-200">
                   2. Transcription & Translation (English)
                 </h3>
                 {transcription && (
-                  <button onClick={() => copyToClipboard(transcription)} className="text-gray-500 hover:text-gray-700 flex items-center gap-1 text-sm font-medium">
+                  <button onClick={() => copyToClipboard(transcription)} className="text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:text-slate-300 flex items-center gap-1 text-sm font-medium">
                     <Copy className="w-4 h-4" /> Copy
                   </button>
                 )}
               </div>
               <textarea
-                className={`w-full flex-grow p-4 border rounded-md resize-none min-h-[200px] focus:ring-indigo-500 focus:border-indigo-500 bg-indigo-50/30`}
+                className={`w-full flex-grow p-4 border rounded-md resize-none min-h-[200px] focus:ring-indigo-500 focus:border-indigo-500 bg-indigo-50/30 dark:bg-indigo-900/10`}
                 value={transcription}
                 onChange={(e) => setTranscription(e.target.value)}
                 placeholder={isTranscribing ? "Streaming audio to Sarvam via WebSocket... please wait." : "Result will appear here... (You can edit it)"}
@@ -537,9 +544,9 @@ export default function TranslatorApp() {
 
         {/* PRESCRIPTION PIPELINE PANEL */}
         {(activeTab === 'doctor' || activeTab === 'developer') && transcription && (
-          <div className="bg-white rounded-xl shadow-md p-6 mt-8 border-t-4 border-teal-500">
+          <div className="bg-white dark:bg-slate-900/80 dark:backdrop-blur-sm rounded-xl shadow-md dark:shadow-none dark:ring-1 dark:ring-white/10 p-6 mt-8 border-t-4 border-teal-500">
             <div className="flex justify-between items-center mb-4">
-              <h2 className="text-xl font-medium text-gray-800 flex items-center gap-2">
+              <h2 className="text-xl font-medium text-slate-800 dark:text-slate-200 flex items-center gap-2">
                 💊 Prescription Generation (AI)
               </h2>
               {activeTab === 'doctor' ? (
@@ -565,14 +572,14 @@ export default function TranslatorApp() {
 
             {pipelineMetrics && (
               <div className="flex gap-4 mb-4 text-xs flex-wrap">
-                <div className="bg-teal-50 text-teal-800 px-3 py-1.5 rounded border border-teal-200">
+                <div className="bg-teal-50 dark:bg-teal-900/20 text-teal-800 dark:text-teal-300 px-3 py-1.5 rounded border border-teal-200">
                   <span className="font-semibold">LLM Extraction:</span> {(pipelineMetrics.extractMs / 1000).toFixed(2)}s
                 </div>
-                <div className="bg-teal-50 text-teal-800 px-3 py-1.5 rounded border border-teal-200">
+                <div className="bg-teal-50 dark:bg-teal-900/20 text-teal-800 dark:text-teal-300 px-3 py-1.5 rounded border border-teal-200">
                   <span className="font-semibold">DB Mapping:</span> {(pipelineMetrics.mapMs / 1000).toFixed(2)}s
                 </div>
                 {pipelineMetrics.generateMs !== undefined && (
-                  <div className="bg-teal-50 text-teal-800 px-3 py-1.5 rounded border border-teal-200">
+                  <div className="bg-teal-50 dark:bg-teal-900/20 text-teal-800 dark:text-teal-300 px-3 py-1.5 rounded border border-teal-200">
                     <span className="font-semibold">LLM Generation:</span> {(pipelineMetrics.generateMs / 1000).toFixed(2)}s
                   </div>
                 )}
@@ -584,22 +591,22 @@ export default function TranslatorApp() {
 
             {activeTab === 'developer' && mappedDrugs.length > 0 && (
               <div className="space-y-4">
-                <h3 className="font-semibold text-gray-700">Identified Medications & Candidates:</h3>
+                <h3 className="font-semibold text-slate-700 dark:text-slate-300">Identified Medications & Candidates:</h3>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   {mappedDrugs.map((drug, i) => (
-                    <div key={i} className="border rounded-lg p-4 bg-teal-50 border-teal-100">
-                      <p className="font-medium text-teal-800 mb-2">Original: <span className="font-bold">"{drug.original_extracted_word}"</span></p>
+                    <div key={i} className="border rounded-lg p-4 bg-teal-50 dark:bg-teal-900/20 border-teal-100">
+                      <p className="font-medium text-teal-800 dark:text-teal-300 mb-2">Original: <span className="font-bold">"{drug.original_extracted_word}"</span></p>
                       <div className="space-y-4">
                         {/* Phonetic Matches */}
                         {drug.top_phonetic && drug.top_phonetic.length > 0 && (
                           <div className="space-y-2">
-                            <h4 className="text-xs font-bold text-purple-700 uppercase tracking-wider mb-1 border-b border-purple-200 pb-1">Top Phonetic Matches</h4>
+                            <h4 className="text-xs font-bold text-purple-700 uppercase tracking-wider mb-1 border-b border-slate-200 dark:border-slate-800 border-purple-200 pb-1">Top Phonetic Matches</h4>
                             {drug.top_phonetic.map((match: any, j: number) => (
-                              <div key={`p-${j}`} className="text-sm flex flex-col bg-white p-2 rounded border border-purple-100 shadow-sm">
+                              <div key={`p-${j}`} className="text-sm flex flex-col bg-white dark:bg-slate-900/80 dark:backdrop-blur-sm p-2 rounded border border-purple-100 shadow-sm">
                                 <div className="flex justify-between items-start mb-1">
-                                  <p className="font-semibold text-gray-800">{match.brand_name}</p>
+                                  <p className="font-semibold text-slate-800 dark:text-slate-200">{match.brand_name}</p>
                                 </div>
-                                {match.salt && <p className="text-gray-500 text-xs leading-tight">{match.salt}</p>}
+                                {match.salt && <p className="text-slate-500 dark:text-slate-400 text-xs leading-tight">{match.salt}</p>}
                               </div>
                             ))}
                           </div>
@@ -608,14 +615,14 @@ export default function TranslatorApp() {
                         {/* Fuzzy Matches */}
                         {drug.top_fuzzy && drug.top_fuzzy.length > 0 && (
                           <div className="space-y-2 pt-2">
-                            <h4 className="text-xs font-bold text-blue-700 uppercase tracking-wider mb-1 border-b border-blue-200 pb-1">Top Fuzzy Matches</h4>
+                            <h4 className="text-xs font-bold text-blue-700 uppercase tracking-wider mb-1 border-b border-slate-200 dark:border-slate-800 border-blue-200 pb-1">Top Fuzzy Matches</h4>
                             {drug.top_fuzzy.map((match: any, j: number) => (
-                              <div key={`f-${j}`} className="text-sm flex flex-col bg-white p-2 rounded border border-blue-100 shadow-sm">
+                              <div key={`f-${j}`} className="text-sm flex flex-col bg-white dark:bg-slate-900/80 dark:backdrop-blur-sm p-2 rounded border border-blue-100 shadow-sm">
                                 <div className="flex justify-between items-start mb-1">
-                                  <p className="font-semibold text-gray-800">{match.brand_name}</p>
+                                  <p className="font-semibold text-slate-800 dark:text-slate-200">{match.brand_name}</p>
                                   <span className="text-blue-600 font-mono text-[10px]">Score: {Math.round(match.score)}</span>
                                 </div>
-                                {match.salt && <p className="text-gray-500 text-xs leading-tight">{match.salt}</p>}
+                                {match.salt && <p className="text-slate-500 dark:text-slate-400 text-xs leading-tight">{match.salt}</p>}
                               </div>
                             ))}
                           </div>
@@ -633,7 +640,7 @@ export default function TranslatorApp() {
                   <button
                     onClick={handleGenerate}
                     disabled={isGenerating}
-                    className="bg-blue-600 hover:bg-blue-700 text-white font-semibold py-3 px-8 rounded-lg shadow-md transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+                    className="bg-blue-600 hover:bg-blue-700 text-white font-semibold py-3 px-8 rounded-lg shadow-md dark:shadow-none dark:ring-1 dark:ring-white/10 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
                   >
                     {isGenerating ? (
                       <>
@@ -649,8 +656,8 @@ export default function TranslatorApp() {
             )}
 
             {prescriptionHtml && (
-              <div className="mt-8 border-t pt-8">
-                <h3 className="font-semibold text-gray-700 mb-4 flex items-center justify-between">
+              <div className="mt-8 border-t border-slate-200 dark:border-slate-800 pt-8">
+                <h3 className="font-semibold text-slate-700 dark:text-slate-300 mb-4 flex items-center justify-between">
                   Final Digital Prescription (Editable)
                   <button 
                     onClick={async () => {
@@ -686,12 +693,12 @@ export default function TranslatorApp() {
                       }
                     }}
                     disabled={isSaving}
-                    className="bg-gray-800 text-white text-sm px-4 py-2 rounded shadow hover:bg-gray-700 transition disabled:opacity-50"
+                    className="bg-slate-800 dark:bg-slate-700 text-white text-sm px-4 py-2 rounded shadow hover:bg-gray-700 transition disabled:opacity-50"
                   >
                     {isSaving ? 'Saving...' : '💾 Print & Save'}
                   </button>
                 </h3>
-                <div className="border border-gray-300 rounded-lg overflow-hidden bg-white shadow-inner" style={{ height: '800px' }}>
+                <div className="border border-slate-300 dark:border-slate-700 rounded-lg overflow-hidden bg-white dark:bg-slate-900/80 dark:backdrop-blur-sm shadow-inner" style={{ height: '800px' }}>
                   <iframe 
                     ref={iframeRef}
                     srcDoc={prescriptionHtml} 
@@ -706,17 +713,17 @@ export default function TranslatorApp() {
 
         {/* USAGE DB PANEL */}
         {activeTab === 'usage' && (
-          <div className="bg-white rounded-xl shadow-md p-6 mt-8 border-t-4 border-green-500">
-          <h2 className="text-xl font-medium text-gray-800 mb-4 flex items-center gap-2">
+          <div className="bg-white dark:bg-slate-900/80 dark:backdrop-blur-sm rounded-xl shadow-md dark:shadow-none dark:ring-1 dark:ring-white/10 p-6 mt-8 border-t-4 border-green-500">
+          <h2 className="text-xl font-medium text-slate-800 dark:text-slate-200 mb-4 flex items-center gap-2">
             📊 Cost & Usage Logs
           </h2>
           
           <div className="space-y-8">
             <div>
-              <h3 className="text-lg font-medium text-gray-700 mb-2">Transcription Logs</h3>
+              <h3 className="text-lg font-medium text-slate-700 dark:text-slate-300 mb-2">Transcription Logs</h3>
               <div className="overflow-x-auto border rounded-md">
                 <table className="min-w-full text-left text-sm whitespace-nowrap">
-                  <thead className="uppercase tracking-wider border-b-2 border-gray-200 text-gray-600 bg-gray-50">
+                  <thead className="uppercase tracking-wider border-b border-slate-200 dark:border-slate-800-2 border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-400 bg-slate-50 dark:bg-slate-800/50">
                     <tr>
                       <th scope="col" className="px-6 py-3">Time</th>
                       <th scope="col" className="px-6 py-3">Duration (sec)</th>
@@ -726,16 +733,16 @@ export default function TranslatorApp() {
                   </thead>
                   <tbody>
                     {(usageStats?.transcriptions || []).map((stat: any, i: number) => (
-                      <tr key={i} className="border-b border-gray-100 hover:bg-gray-50">
+                      <tr key={i} className="border-b border-slate-200 dark:border-slate-800 border-gray-100 hover:bg-slate-50 dark:bg-slate-800/50">
                         <td className="px-6 py-3">{new Date(stat.timestamp).toLocaleString()}</td>
                         <td className="px-6 py-3">{stat.duration_seconds.toFixed(2)}s</td>
                         <td className="px-6 py-3 font-semibold text-green-600">₹{stat.cost_inr.toFixed(4)}</td>
-                        <td className="px-6 py-3 text-gray-500 truncate max-w-xs" title={stat.transcription_text}>{stat.transcription_text}</td>
+                        <td className="px-6 py-3 text-slate-500 dark:text-slate-400 truncate max-w-xs" title={stat.transcription_text}>{stat.transcription_text}</td>
                       </tr>
                     ))}
                     {(!usageStats?.transcriptions || usageStats.transcriptions.length === 0) && (
                       <tr>
-                        <td colSpan={4} className="px-6 py-4 text-center text-gray-500">No transcriptions logged yet.</td>
+                        <td colSpan={4} className="px-6 py-4 text-center text-slate-500 dark:text-slate-400">No transcriptions logged yet.</td>
                       </tr>
                     )}
                   </tbody>
@@ -744,10 +751,10 @@ export default function TranslatorApp() {
             </div>
 
             <div>
-              <h3 className="text-lg font-medium text-gray-700 mb-2">Translation Logs</h3>
+              <h3 className="text-lg font-medium text-slate-700 dark:text-slate-300 mb-2">Translation Logs</h3>
               <div className="overflow-x-auto border rounded-md">
                 <table className="min-w-full text-left text-sm whitespace-nowrap">
-                  <thead className="uppercase tracking-wider border-b-2 border-gray-200 text-gray-600 bg-gray-50">
+                  <thead className="uppercase tracking-wider border-b border-slate-200 dark:border-slate-800-2 border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-400 bg-slate-50 dark:bg-slate-800/50">
                     <tr>
                       <th scope="col" className="px-6 py-3">Time</th>
                       <th scope="col" className="px-6 py-3">Route</th>
@@ -757,7 +764,7 @@ export default function TranslatorApp() {
                   </thead>
                   <tbody>
                     {(usageStats?.translations || []).map((stat: any, i: number) => (
-                      <tr key={i} className="border-b border-gray-100 hover:bg-gray-50">
+                      <tr key={i} className="border-b border-slate-200 dark:border-slate-800 border-gray-100 hover:bg-slate-50 dark:bg-slate-800/50">
                         <td className="px-6 py-3">{new Date(stat.timestamp).toLocaleString()}</td>
                         <td className="px-6 py-3 font-medium text-indigo-600">{stat.source_language} ➔ {stat.target_language}</td>
                         <td className="px-6 py-3">{stat.text_length} chars</td>
@@ -766,7 +773,7 @@ export default function TranslatorApp() {
                     ))}
                     {(!usageStats?.translations || usageStats.translations.length === 0) && (
                       <tr>
-                        <td colSpan={4} className="px-6 py-4 text-center text-gray-500">No translations logged yet.</td>
+                        <td colSpan={4} className="px-6 py-4 text-center text-slate-500 dark:text-slate-400">No translations logged yet.</td>
                       </tr>
                     )}
                   </tbody>
@@ -781,3 +788,5 @@ export default function TranslatorApp() {
     </div>
   );
 }
+
+
