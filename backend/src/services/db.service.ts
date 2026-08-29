@@ -15,15 +15,15 @@ pool.query('SELECT NOW()', (err) => {
   }
 });
 
-export const logUsage = async (durationSeconds: number, transcriptionText: string) => {
+export const logUsage = async (durationSeconds: number, transcriptionText: string, audioUrl: string | null = null) => {
   // Sarvam STT Streaming API pricing: ₹30.00 per hour
   const costInr = (durationSeconds / 3600) * 30.00;
   
   const query = `
-    INSERT INTO usage (duration_seconds, cost_inr, transcription_text, timestamp) VALUES ($1, $2, $3, CURRENT_TIMESTAMP) RETURNING id
+    INSERT INTO usage (duration_seconds, cost_inr, transcription_text, timestamp, audio_url) VALUES ($1, $2, $3, CURRENT_TIMESTAMP, $4) RETURNING id
   `;
   
-  const result = await pool.query(query, [durationSeconds, costInr, transcriptionText]);
+  const result = await pool.query(query, [durationSeconds, costInr, transcriptionText, audioUrl]);
   return { id: result.rows[0].id, costInr };
 };
 
@@ -38,7 +38,7 @@ export const logTranslation = async (sourceLanguage: string, targetLanguage: str
 };
 
 export const getUsageStats = async () => {
-  const usageResult = await pool.query(`SELECT id, duration_seconds, cost_inr, transcription_text, timestamp FROM usage ORDER BY timestamp DESC LIMIT 50`);
+  const usageResult = await pool.query(`SELECT id, duration_seconds, cost_inr, transcription_text, timestamp, audio_url FROM usage ORDER BY timestamp DESC LIMIT 50`);
   const translationResult = await pool.query(`SELECT id, source_language, target_language, text_length, translation_time_ms, timestamp, cost_inr FROM translation_logs ORDER BY timestamp DESC LIMIT 50`);
   
   return {
@@ -47,12 +47,12 @@ export const getUsageStats = async () => {
   };
 };
 
-export const savePrescription = async (patientName: string, diagnosis: string, htmlContent: string, transcriptionText: string = '') => {
+export const savePrescription = async (patientName: string, diagnosis: string, htmlContent: string, transcriptionText: string = '', audioUrl: string | null = null) => {
   const query = `
-    INSERT INTO prescriptions (patient_name, diagnosis, html_content, transcription_text, timestamp) VALUES ($1, $2, $3, $4, CURRENT_TIMESTAMP) RETURNING id
+    INSERT INTO prescriptions (patient_name, diagnosis, html_content, transcription_text, timestamp, audio_url) VALUES ($1, $2, $3, $4, CURRENT_TIMESTAMP, $5) RETURNING id
   `;
   
-  const result = await pool.query(query, [patientName || 'Unknown Patient', diagnosis || 'Unknown Diagnosis', htmlContent, transcriptionText]);
+  const result = await pool.query(query, [patientName || 'Unknown Patient', diagnosis || 'Unknown Diagnosis', htmlContent, transcriptionText, audioUrl]);
   return result.rows[0].id;
 };
 

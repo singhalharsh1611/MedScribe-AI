@@ -3,6 +3,7 @@ import * as fs from 'fs';
 import * as mm from 'music-metadata';
 import { transcribeAudio } from '../services/sarvam.service';
 import { logUsage } from '../services/db.service';
+import { uploadAudioFile } from '../services/cloudinary.service';
 
 export const handleTranscription = async (req: Request, res: Response, next: NextFunction) => {
   const file = req.file;
@@ -47,7 +48,16 @@ export const handleTranscription = async (req: Request, res: Response, next: Nex
     const result = await transcribeAudio(file.path, language, mode, onProgress);
     console.log(`[Transcription] Success for language: ${language}, mode: ${mode}`);
     
-    const usage = await logUsage(durationSeconds, `[${mode.toUpperCase()}] ` + result.text);
+        let audioUrl = null;
+    try {
+        console.log('[Cloudinary] Uploading audio file...');
+        audioUrl = await uploadAudioFile(file.path);
+        console.log('[Cloudinary] Uploaded successfully:', audioUrl);
+    } catch(err) {
+        console.error('[Cloudinary] Failed to upload audio:', err);
+    }
+
+    const usage = await logUsage(durationSeconds, `[${mode.toUpperCase()}] ` + result.text, audioUrl);
     console.log(`[Usage] Logged usage: ID ${usage.id}, Duration: ${durationSeconds.toFixed(2)}s, Cost: ₹${usage.costInr.toFixed(4)}`);
 
     res.write(`data: ${JSON.stringify({
@@ -72,4 +82,18 @@ export const handleTranscription = async (req: Request, res: Response, next: Nex
       console.error('Error cleaning up file:', cleanupErr);
     }
   }
+};
+
+export const handleAudioUpload = async (req: Request, res: Response) => {
+    try {
+        const file = req.file;
+        if (!file) return res.status(400).json({ error: 'No audio file provided' });
+        
+        console.log('[Cloudinary] Uploading raw audio Blob...');
+        const audioUrl = await uploadAudioFile(file.path);
+        res.json({ audioUrl });
+    } catch (err) {
+        console.error(err);
+        res.status(500).json({ error: 'Failed to upload audio' });
+    }
 };

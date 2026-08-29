@@ -2,7 +2,7 @@ import { Router } from 'express';
 import multer from 'multer';
 import * as os from 'os';
 import * as path from 'path';
-import { handleTranscription } from '../controllers/transcription.controller';
+import { handleTranscription, handleAudioUpload } from '../controllers/transcription.controller';
 
 const router = Router();
 
@@ -28,5 +28,6 @@ const upload = multer({
 });
 
 router.post('/', upload.single('audio'), handleTranscription);
+router.post('/upload', upload.single('audio'), handleAudioUpload);
 
 export default router;
