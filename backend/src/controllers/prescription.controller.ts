@@ -38,14 +38,24 @@ export const handleGeneratePrescription = async (req: Request, res: Response) =>
         }
 
         const { html, patientName, diagnosis } = await generatePrescription(transcript, mappedDrugs);
-        
-        // Save to DB
-        savePrescription(patientName, diagnosis, html);
 
-        res.send(html);
+        res.json({ html, patientName, diagnosis });
     } catch (error: any) {
         console.error(error);
         res.status(500).json({ error: error.message || 'Failed to generate prescription' });
+    }
+};
+
+export const handleSavePrescription = (req: Request, res: Response) => {
+    try {
+        const { html, patientName, diagnosis } = req.body;
+        if (!html) return res.status(400).json({ error: 'HTML content is required' });
+
+        const id = savePrescription(patientName, diagnosis, html);
+        res.json({ success: true, id });
+    } catch (error: any) {
+        console.error(error);
+        res.status(500).json({ error: error.message || 'Failed to save prescription' });
     }
 };
 

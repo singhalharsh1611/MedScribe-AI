@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
-import { getLanguages, transcribeAudio, translateText, extractDrugs, mapDrugsToDatabase, generatePrescription, getPrescriptionHistory, getPrescriptionHtml } from '../../lib/api';
+import { getLanguages, transcribeAudio, translateText, extractDrugs, mapDrugsToDatabase, generatePrescription, getPrescriptionHistory, getPrescriptionHtml, savePrescription } from '../../lib/api';
 import { Language } from '../../types';
 import { useAudioRecorder } from '../../hooks/use-audio-recorder';
 import { Mic, Square, Play, Copy, Upload, Trash2, Languages, Activity } from 'lucide-react';
@@ -30,11 +30,16 @@ export default function TranslatorApp() {
   const [prescriptionHistory, setPrescriptionHistory] = useState<any[]>([]);
   const [viewingHistoryId, setViewingHistoryId] = useState<number | null>(null);
   const [historyHtml, setHistoryHtml] = useState<string | null>(null);
+  
+  const [patientName, setPatientName] = useState<string>('');
+  const [diagnosis, setDiagnosis] = useState<string>('');
+  const [isSaving, setIsSaving] = useState(false);
 
   const [error, setError] = useState<string | null>(null);
   
   const [isLiveMode, setIsLiveMode] = useState(false);
   const wsRef = useRef<WebSocket | null>(null);
+  const iframeRef = useRef<HTMLIFrameElement>(null);
   
   const [activeTab, setActiveTab] = useState<'doctor' | 'developer' | 'history'>('doctor');
   
@@ -86,10 +91,15 @@ export default function TranslatorApp() {
 
       // 3. Generate
       const startGen = performance.now();
-      const html = await generatePrescription(transcription, mapped);
+      const result = await generatePrescription(transcription, mapped);
       const generateTime = performance.now() - startGen;
 
-      setPrescriptionHtml(html);
+      setPatientName(result.patientName || 'Unknown Patient');
+      setDiagnosis(result.diagnosis || 'Unknown Diagnosis');
+      
+      const editableHtml = result.html.replace('<body>', '<body contenteditable="true">');
+      setPrescriptionHtml(editableHtml);
+      
       setPipelineMetrics({ extractMs: extractTime, mapMs: mapTime, generateMs: generateTime });
     } catch (err: any) {
       setError(err.response?.data?.error || err.message || 'Doctor Pipeline Failed');
@@ -291,12 +301,15 @@ export default function TranslatorApp() {
 
     try {
       const startGen = performance.now();
-      // Import the api dynamically or from top level (already imported at top of file hopefully)
-      // I will assume generatePrescription is exported from @/lib/api
-      const html = await generatePrescription(transcription, mappedDrugs);
+      const result = await generatePrescription(transcription, mappedDrugs);
       const generateTime = performance.now() - startGen;
 
-      setPrescriptionHtml(html);
+      setPatientName(result.patientName || 'Unknown Patient');
+      setDiagnosis(result.diagnosis || 'Unknown Diagnosis');
+      
+      const editableHtml = result.html.replace('<body>', '<body contenteditable="true">');
+      setPrescriptionHtml(editableHtml);
+      
       setPipelineMetrics(prev => prev ? { ...prev, generateMs: generateTime } : null);
     } catch (err: any) {
       setError(err.response?.data?.error || err.message || 'Failed to generate prescription.');
@@ -632,22 +645,49 @@ export default function TranslatorApp() {
             {prescriptionHtml && (
               <div className="mt-8 border-t pt-8">
                 <h3 className="font-semibold text-gray-700 mb-4 flex items-center justify-between">
-                  Final Digital Prescription
+                  Final Digital Prescription (Editable)
                   <button 
-                    onClick={() => {
-                      const printWindow = window.open('', '', 'width=900,height=700');
-                      printWindow?.document.write(prescriptionHtml);
-                      printWindow?.document.close();
-                      printWindow?.focus();
-                      setTimeout(() => printWindow?.print(), 250);
+                    onClick={async () => {
+                      try {
+                        setIsSaving(true);
+                        
+                        // Get edited HTML from iframe if possible, fallback to state
+                        let finalHtml = prescriptionHtml;
+                        try {
+                          if (iframeRef.current && iframeRef.current.contentDocument) {
+                            finalHtml = iframeRef.current.contentDocument.documentElement.outerHTML;
+                            // Clean up contenteditable for saving/printing
+                            finalHtml = finalHtml.replace(/contenteditable="true"/g, '');
+                          }
+                        } catch (e) {
+                          console.error("Could not read from iframe", e);
+                          finalHtml = finalHtml.replace(/contenteditable="true"/g, '');
+                        }
+
+                        // Save to DB
+                        await savePrescription(finalHtml, patientName, diagnosis);
+
+                        // Open Print Window
+                        const printWindow = window.open('', '', 'width=900,height=700');
+                        printWindow?.document.write(finalHtml);
+                        printWindow?.document.close();
+                        printWindow?.focus();
+                        setTimeout(() => printWindow?.print(), 250);
+                      } catch (err: any) {
+                        alert('Failed to save prescription: ' + (err.message || 'Unknown error'));
+                      } finally {
+                        setIsSaving(false);
+                      }
                     }}
-                    className="bg-gray-800 text-white text-sm px-4 py-2 rounded shadow hover:bg-gray-700 transition"
+                    disabled={isSaving}
+                    className="bg-gray-800 text-white text-sm px-4 py-2 rounded shadow hover:bg-gray-700 transition disabled:opacity-50"
                   >
-                    Print / Save PDF
+                    {isSaving ? 'Saving...' : '💾 Print & Save'}
                   </button>
                 </h3>
                 <div className="border border-gray-300 rounded-lg overflow-hidden bg-white shadow-inner" style={{ height: '800px' }}>
                   <iframe 
+                    ref={iframeRef}
                     srcDoc={prescriptionHtml} 
                     className="w-full h-full border-none"
                     title="Prescription Preview"
