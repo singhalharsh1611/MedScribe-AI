@@ -3,7 +3,6 @@ import * as cheerio from 'cheerio';
 import { Pool } from 'pg';
 import path from 'path';
 import * as cliProgress from 'cli-progress';
-import fs from 'fs';
 import 'dotenv/config';
 
 // Constants
@@ -16,19 +15,21 @@ const HEADERS = {
     'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8'
 };
 
-// Initialize Database
-    SELECT url, brand_name FROM drugs WHERE status = 'PENDING' LIMIT ?
-`);
+const pool = new Pool({
+    connectionString: process.env.DATABASE_URL,
+    ssl: { rejectUnauthorized: false }
+});
 
-const getStatsStmt = db.prepare(`
-    SELECT 
-        COUNT(*) as total,
-        SUM(CASE WHEN status = 'DONE' THEN 1 ELSE 0 END) as done,
-        SUM(CASE WHEN status = 'PENDING' THEN 1 ELSE 0 END) as pending,
-        SUM(CASE WHEN status = 'ERROR' THEN 1 ELSE 0 END) as error,
-        SUM(CASE WHEN status = '404' THEN 1 ELSE 0 END) as not_found
-    FROM drugs
-`);
+async function getStats() {
+    const res = await pool.query(`
+        SELECT 
+            COUNT(*) as total,
+            SUM(CASE WHEN salt IS NOT NULL THEN 1 ELSE 0 END) as done,
+            SUM(CASE WHEN salt IS NULL THEN 1 ELSE 0 END) as pending
+        FROM drugs
+    `);
+    return res.rows[0];
+}
 
 function cleanBrandNameFromUrl(url: string): string {
     const parts = url.split('/');
@@ -44,15 +45,6 @@ async function fetchSitemap(sitemapUrl: string) {
         const { data } = await axios.get(sitemapUrl, { headers: HEADERS });
         const $ = cheerio.load(data, { xmlMode: true });
         
-        let count = 0;
-        const insertMany = db.transaction((urls: string[]) => {
-            for (const url of urls) {
-                const brand = cleanBrandNameFromUrl(url);
-                const info = insertDrugStmt.run(url, brand);
-                if (info.changes > 0) count++;
-            }
-        });
-
         const urls: string[] = [];
         $('loc').each((_, el) => {
             const url = $(el).text();
@@ -61,7 +53,28 @@ async function fetchSitemap(sitemapUrl: string) {
             }
         });
 
-        insertMany(urls);
+        // Batch insert
+        let count = 0;
+        const batchSize = 1000;
+        for (let i = 0; i < urls.length; i += batchSize) {
+            const batch = urls.slice(i, i + batchSize);
+            const values = [];
+            const params = [];
+            let paramIdx = 1;
+            
+            for (const url of batch) {
+                const brand = cleanBrandNameFromUrl(url);
+                values.push(`($${paramIdx++}, $${paramIdx++})`);
+                params.push(url, brand);
+            }
+            
+            if (values.length > 0) {
+                const query = `INSERT INTO drugs (url, brand_name) VALUES ${values.join(', ')} ON CONFLICT (url) DO NOTHING`;
+                const res = await pool.query(query, params);
+                count += res.rowCount || 0;
+            }
+        }
+
         console.log(`✅ Added ${count} new drugs from ${sitemapUrl.split('/').pop()}.`);
     } catch (error: any) {
         console.error(`❌ Failed to fetch child sitemap ${sitemapUrl}: ${error.message}`);
@@ -84,7 +97,6 @@ async function fetchAllSitemaps() {
 
         console.log(`Found ${sitemaps.length} drug sitemaps. Downloading all URLs...`);
         
-        // Fetch them sequentially to avoid blowing up memory and getting IP blocked
         for (const sitemapUrl of sitemaps) {
             await fetchSitemap(sitemapUrl);
         }
@@ -93,23 +105,20 @@ async function fetchAllSitemaps() {
     }
 }
 
-async function scrapePage(url: string, brandName: string): Promise<{salt: string, status: string}> {
+async function scrapePage(url: string, brandName: string): Promise<{salt: string}> {
     try {
         const { data } = await axios.get(url, { headers: HEADERS, timeout: 10000 });
         const $ = cheerio.load(data);
         
         let salt = '';
         
-        // 1mg places the generic salt in the meta keywords tag (usually the last comma-separated item)
         const keywords = $('meta[name="keywords"]').attr('content');
         if (keywords) {
             const parts = keywords.split(',');
-            // The salt is usually the very last item
             salt = parts[parts.length - 1].trim();
         }
 
         if (!salt || salt === 'Unknown') {
-            // Fallback to checking description
             const desc = $('meta[name="description"]').attr('content');
             if (desc && desc.includes('active ingredient')) {
                 const match = desc.match(/active ingredients? (.*?)\./i);
@@ -117,39 +126,45 @@ async function scrapePage(url: string, brandName: string): Promise<{salt: string
             }
         }
 
-        if (!salt) {
-            salt = 'UNKNOWN_SALT';
-        }
+        if (!salt) salt = 'UNKNOWN_SALT';
 
-        return { salt, status: 'DONE' };
+        return { salt };
     } catch (error: any) {
-        if (error.response && error.response.status === 404) {
-            return { salt: '', status: '404' };
-        }
-        return { salt: '', status: 'ERROR' };
+        return { salt: 'ERROR_OR_404' };
     }
 }
 
 async function runScraper() {
-    const stats = getStatsStmt.get() as any;
+    // Ensure table exists
+    await pool.query(`
+        CREATE TABLE IF NOT EXISTS drugs (
+            id SERIAL PRIMARY KEY,
+            brand_name TEXT,
+            company_name TEXT,
+            salt TEXT,
+            phonetic_code TEXT,
+            price REAL,
+            form TEXT,
+            unit TEXT,
+            url TEXT UNIQUE
+        );
+    `);
+
+    const stats = await getStats();
     console.log(`\n📊 Database Stats:`);
     console.log(`   Total:   ${stats.total}`);
     console.log(`   Pending: ${stats.pending}`);
     console.log(`   Done:    ${stats.done}`);
-    console.log(`   Errors:  ${stats.error} (Will be retried)`);
 
-    if (stats.total === 0) {
+    if (parseInt(stats.total) === 0) {
         console.log(`\n⚠️ Database is empty. Fetching all sitemaps...`);
         await fetchAllSitemaps();
-    } else if (stats.error > 0) {
-        // Reset errors to pending to retry them
-        console.log(`\n♻️ Resetting ${stats.error} errors to PENDING for retry...`);
-        db.exec("UPDATE drugs SET status = 'PENDING' WHERE status = 'ERROR'");
     }
 
-    const newStats = getStatsStmt.get() as any;
-    if (newStats.pending === 0) {
+    const newStats = await getStats();
+    if (parseInt(newStats.pending) === 0) {
         console.log(`\n✅ No pending URLs to scrape!`);
+        await pool.end();
         return;
     }
 
@@ -163,25 +178,24 @@ async function runScraper() {
         etaBuffer: 50
     });
 
-    progressBar.start(newStats.pending, 0, { lastBrand: 'N/A' });
+    progressBar.start(parseInt(newStats.pending), 0, { lastBrand: 'N/A' });
 
     let processed = 0;
     let keepRunning = true;
 
-    // Graceful shutdown on Ctrl+C
     process.on('SIGINT', () => {
         console.log('\n\n🛑 Received SIGINT (Ctrl+C). Shutting down gracefully...');
         keepRunning = false;
     });
 
     while (keepRunning) {
-        const batch = getPendingStmt.all(CONCURRENCY) as {url: string, brand_name: string}[];
-        if (batch.length === 0) break; // We are done!
+        const batchRes = await pool.query('SELECT url, brand_name FROM drugs WHERE salt IS NULL LIMIT $1', [CONCURRENCY]);
+        const batch = batchRes.rows;
+        if (batch.length === 0) break;
 
-        // Scrape in parallel up to CONCURRENCY limit
         const promises = batch.map(async (row) => {
-            const { salt, status } = await scrapePage(row.url, row.brand_name);
-            updateDrugStmt.run(salt, status, row.url);
+            const { salt } = await scrapePage(row.url, row.brand_name);
+            await pool.query('UPDATE drugs SET salt = $1 WHERE url = $2', [salt, row.url]);
             
             processed++;
             progressBar.update(processed, { lastBrand: row.brand_name });
@@ -189,19 +203,18 @@ async function runScraper() {
 
         await Promise.all(promises);
 
-        // Sleep to avoid rate limits
         if (keepRunning) {
             await new Promise(r => setTimeout(r, DELAY_MS));
         }
     }
 
     progressBar.stop();
-    console.log('\n🏁 Scraper stopped.');
+    console.log('\n⏹️ Scraper stopped.');
     
-    const finalStats = getStatsStmt.get() as any;
+    const finalStats = await getStats();
     console.log(`\n📊 Final Database Stats:`);
     console.log(`   Done:    ${finalStats.done}`);
-    console.log(`   Errors:  ${finalStats.error}`);
+    await pool.end();
 }
 
 runScraper().catch(console.error);

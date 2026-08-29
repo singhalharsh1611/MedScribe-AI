@@ -7,6 +7,14 @@ const pool = new Pool({
   ssl: { rejectUnauthorized: false }
 });
 
+pool.query('SELECT NOW()', (err) => {
+  if (err) {
+    console.error('Failed to connect to Neon Postgres:', err);
+  } else {
+    console.log('✅ Successfully connected to Neon Postgres Database!');
+  }
+});
+
 export const logUsage = async (durationSeconds: number, transcriptionText: string) => {
   // Sarvam API pricing: ₹130.00 per hour
   const costInr = (durationSeconds / 3600) * 130.00;

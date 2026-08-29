@@ -1,30 +1,25 @@
-# Indian Language Voice Translator
+# SleekCare AI Voice Prescription Generator
 
-A complete MVP web application for speech-to-text transcription and text translation across 28 Indian languages.
+A complete enterprise-grade web application for speech-to-text transcription, medical mapping, and digital prescription generation across Indian languages.
 
 ## Project Overview
-This application allows a user to:
-1. Select the language being spoken.
-2. Record audio directly from their microphone OR upload an existing audio file.
-3. Transcribe the audio into text in the *original spoken language and native script*.
-4. Allow the user to edit the transcription.
-5. Select a target language.
-6. Translate the transcription into the selected target language.
-7. Copy or edit the translated text.
-
-The application conceptually separates Transcription from Translation as requested. It uses the Sarvam AI API as the backend provider, which specializes in Indian languages.
+This application allows a doctor to:
+1. Speak naturally into their microphone in English, Hindi, or Auto-detected languages.
+2. Transcribe the audio instantly into text.
+3. Use MedGemma AI to automatically extract suspected drug names, patient names, and diagnosis from the unstructured text.
+4. Perform extreme high-speed phonetic + fuzzy matching (O(1) bucketing) against a heavily optimized database of 386,000+ Indian medicines (scraped from 1mg) to map spoken words directly to exact brand names and generic salts.
+5. Generate a beautiful, printable HTML digital prescription that is fully editable.
+6. Automatically save the exact prescription, pipeline latency metrics, and API costs to a PostgreSQL database.
 
 ## Architecture
-- **Frontend**: Next.js 15, React 19, Tailwind CSS v4, Lucide Icons, Axios.
-- **Backend**: Express + Node.js, Multer (for audio uploads), Axios, `google-translate-api-x`.
-- **AI Providers**: Abstracted cleanly in backend services. Currently implemented with Sarvam AI for STT and Google Translate (Free API) for Translation.
-
-## Supported Languages
-The application contains a registry of 28 Indian languages. The 28th distinct language implemented is **Tulu**.
-
-**Important note about AI provider limitations:**
-Sarvam AI natively targets the 22 scheduled Indian languages for transcription. For the remaining 6 languages in the 28-language requirement (such as Tulu, Bhojpuri, Rajasthani, Chhattisgarhi, Magahi, Awadhi), transcription is marked as unsupported, and the application gracefully displays an error.
-However, because translation is powered by the Google Translate API (via `google-translate-api-x`), all 28 languages support translation (either explicitly or via close dialect fallback in Google's engine).
+- **Frontend**: Next.js 15, React 19, Tailwind CSS v4.
+- **Backend**: Express + Node.js, WebSocket (for live STT), `pg` (PostgreSQL client).
+- **Databases**: Neon PostgreSQL (fully managed cloud SQL).
+  - Contains 386,000+ drugs with Trigram indexing (`pg_trgm`) and Double Metaphone phonetic codes.
+  - Usage tracking and prescription history.
+- **AI Providers**: 
+  - **Sarvam AI**: For native streaming STT (Speech to Text) customized for Indian accents.
+  - **MedGemma 4B**: Specialized medical LLM (hosted on DR7 API) for zero-shot clinical entity extraction and HTML prescription generation.
 
 ## Setup
 
@@ -43,11 +38,15 @@ However, because translation is powered by the Google Translate API (via `google
 ## Environment Variables
 
 ### Backend
-In `backend/`, copy `.env.example` to `.env`:
+In `backend/`, copy `.env.example` to `.env` (or create `.env`):
 ```bash
 PORT=3001
 FRONTEND_URL=http://localhost:3000
 SARVAM_API_KEY=your_sarvam_api_key_here
+DR7_API_KEY=your_dr7_api_key_here
+DR7_LLM_MODEL=medgemma-4b-it
+DR7_API_URL=https://dr7.ai/api/v1/medical/chat/completions
+DATABASE_URL=postgresql://user:pass@host/dbname?sslmode=require
 ```
 
 ### Frontend
@@ -61,7 +60,7 @@ NEXT_PUBLIC_API_URL=http://localhost:3001/api
 1. **Start the Backend (Express):**
    ```bash
    cd backend
-   npm run start:dev
+   npm run dev
    ```
 
 2. **Start the Frontend (Next.js):**
@@ -72,8 +71,8 @@ NEXT_PUBLIC_API_URL=http://localhost:3001/api
 
 3. Open `http://localhost:3000` in your browser.
 
-## API Documentation
+## Cloud Deployment (Render.com)
 
-- `GET /api/languages`: Returns an array of supported languages along with boolean flags `sttSupported` and `translationSupported`.
-- `POST /api/transcription`: Accepts `multipart/form-data` with `audio` (file) and `language` (code). Returns `{ text, language, detectedLanguage }`.
-- `POST /api/translation`: Accepts JSON `{ text, sourceLanguage, targetLanguage }`. Returns `{ translatedText }`.
+The application is completely stateless and ready for deployment on Render.com or Vercel.
+- **No Local Files**: Because all databases (including the massive 135MB drug dataset) were successfully migrated to **Neon PostgreSQL**, you can deploy this on Render's Free Web Services without data loss.
+- Ensure you set all the Environment Variables above in the Render Dashboard.
