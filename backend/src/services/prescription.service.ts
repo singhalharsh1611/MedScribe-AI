@@ -112,11 +112,12 @@ export const extractDrugs = async (transcript: string): Promise<string[]> => {
     }
 
     const systemPrompt = `You are a strict Named Entity Recognition (NER) assistant for medical transcripts.
-Extract all medication names and their spoken numerical dosages directly from the text (e.g., 'Rebeca 20mg', 'Calpol 500').
+Extract ONLY the medication names (including their strength if spoken as part of the name, e.g., 'Calpol 500', 'Rebeca 20mg').
 CRITICAL RULES:
-1. You MUST extract the exact substring as it appears in the text. Do NOT correct spelling. Do NOT invent or alter medication names.
-2. Do NOT include frequency instructions (e.g., 'twice a day', 'OD').
-3. Respond ONLY with a valid JSON array of strings. Example: ["rebeca 20mg", "calvon"]`;
+1. You MUST extract the exact substring as it appears in the text. Do NOT correct spelling or invent characters.
+2. STRIP AWAY all quantities, tablet counts, and dosing instructions (e.g., ignore '1', 'One', '1 tablet', '2 drops').
+3. STRIP AWAY all frequency instructions (e.g., ignore 'OD', 'twice a day', 'HS', 'BD').
+4. Respond ONLY with a valid JSON array of strings. Example: ["Rebeca 20mg", "Calvon", "Nexito Fort"]`;
 
     const response = await axios.post(apiUrl, {
         model,
