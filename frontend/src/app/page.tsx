@@ -202,7 +202,19 @@ export default function TranslatorApp() {
     if (audioBlob) {
       const url = URL.createObjectURL(audioBlob);
       setAudioUrl(url);
-      return () => URL.revokeObjectURL(url);
+      const handleSavePrescription = async () => {
+    try {
+      setIsSaving(true);
+      await savePrescription(patientName, diagnosis, iframeRef.current?.contentDocument?.documentElement.outerHTML || prescriptionHtml || '');
+      fetchHistory();
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  return () => URL.revokeObjectURL(url);
     } else {
       setAudioUrl(null);
     }
@@ -323,470 +335,434 @@ export default function TranslatorApp() {
     navigator.clipboard.writeText(text);
   };
 
+  const handleSavePrescription = async () => {
+    try {
+      setIsSaving(true);
+      await savePrescription(patientName, diagnosis, iframeRef.current?.contentDocument?.documentElement.outerHTML || prescriptionHtml || '');
+      fetchHistory();
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
   return (
-    <div className="min-h-screen bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100 py-10 px-4 sm:px-6 lg:px-8 transition-colors duration-300">
-      <div className="max-w-5xl mx-auto space-y-8 relative">
+    <div className="min-h-screen bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100 transition-colors duration-300 flex flex-col font-sans">
+      
+      {/* TOP NAVIGATION BAR */}
+      <header className="sticky top-0 z-50 w-full border-b border-slate-200 dark:border-slate-800 bg-white/80 dark:bg-slate-900/80 backdrop-blur-md">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
+          
+          <div className="flex items-center gap-2">
+            <div className="bg-blue-600 p-1.5 rounded-lg">
+              <Activity className="w-5 h-5 text-white" />
+            </div>
+            <span className="font-bold text-xl tracking-tight text-slate-900 dark:text-white">SleekCare AI</span>
+          </div>
+
+          <nav className="hidden md:flex items-center space-x-1">
+            {[
+              { id: 'doctor', label: 'Dashboard' },
+              { id: 'developer', label: 'Developer Debug' },
+              { id: 'history', label: 'History' },
+              { id: 'usage', label: 'Usage Logs' },
+            ].map((tab) => (
+              <button
+                key={tab.id}
+                onClick={() => { setActiveTab(tab.id as any); setTranscription(''); setTranslation(''); }}
+                className={`px-4 py-2 rounded-md text-sm font-medium transition-all ${
+                  activeTab === tab.id 
+                    ? 'bg-slate-100 dark:bg-slate-800 text-slate-900 dark:text-slate-100 shadow-sm' 
+                    : 'text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800/50 hover:text-slate-900 dark:hover:text-slate-300'
+                }`}
+              >
+                {tab.label}
+              </button>
+            ))}
+          </nav>
+
+          <div className="flex items-center gap-4">
+            <ModeToggle />
+          </div>
+        </div>
+      </header>
+
+      {/* MAIN LAYOUT */}
+      <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-8 flex flex-col gap-6">
         
-        <div className="absolute top-0 right-0">
-          <ModeToggle />
-        </div>
-
-        <div className="text-center space-y-3 pt-4">
-          <h1 className="text-4xl md:text-5xl font-extrabold text-slate-900 dark:text-white flex items-center justify-center gap-3 tracking-tight">
-            <Activity className="w-10 h-10 md:w-12 md:h-12 text-blue-600 dark:text-blue-500" />
-            SleekCare AI
-          </h1>
-          <p className="text-slate-600 dark:text-slate-400 text-lg md:text-xl font-medium max-w-2xl mx-auto">
-            Speak naturally to dictate your consultation. We automatically transcribe, extract, and generate clinical digital prescriptions.
-          </p>
-        </div>
-
-        <div className="flex justify-center border-b border-slate-200 dark:border-slate-800">
-          <button
-            onClick={() => { setActiveTab('doctor'); setTranscription(''); setTranslation(''); }}
-            className={`px-6 py-3 font-medium text-sm sm:text-base border-b-2 transition-colors ${activeTab === 'doctor' ? 'border-blue-600 text-blue-600 dark:text-blue-400' : 'border-transparent text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200'}`}
-          >
-            Doctor Dashboard
-          </button>
-          <button
-            onClick={() => { setActiveTab('developer'); setTranscription(''); setTranslation(''); }}
-            className={`px-6 py-3 font-medium text-sm sm:text-base border-b-2 transition-colors ${activeTab === 'developer' ? 'border-indigo-600 text-indigo-600 dark:text-indigo-400' : 'border-transparent text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200'}`}
-          >
-            Developer / Debug
-          </button>
-          <button
-            onClick={() => { setActiveTab('history'); }}
-            className={`px-6 py-3 font-medium text-sm sm:text-base border-b-2 transition-colors ${activeTab === 'history' ? 'border-teal-600 text-teal-600 dark:text-teal-400' : 'border-transparent text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200'}`}
-          >
-            Prescription History
-          </button>
-          <button
-            onClick={() => { setActiveTab('usage'); }}
-            className={`px-6 py-3 font-medium text-sm sm:text-base border-b-2 transition-colors ${activeTab === 'usage' ? 'border-green-600 text-green-600 dark:text-green-400' : 'border-transparent text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200'}`}
-          >
-            Cost & Usage Logs
-          </button>
-        </div>
-
+        {/* GLOBAL ERRORS */}
         {error && (
-          <div className="bg-red-50 dark:bg-red-900/20 border-l-4 border-red-500 p-4 rounded shadow-sm">
-            <p className="text-sm text-red-700 dark:text-red-400 font-medium">{error}</p>
+          <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-900/50 rounded-lg p-4 flex items-center gap-3 text-red-800 dark:text-red-400">
+            <div className="w-2 h-2 rounded-full bg-red-500 animate-pulse" />
+            <p className="text-sm font-medium">{error}</p>
           </div>
         )}
 
-        {/* HISTORY TAB */}
+        {/* --- HISTORY TAB --- */}
         {activeTab === 'history' && (
-          <div className="bg-white dark:bg-slate-900/80 dark:backdrop-blur-sm rounded-xl shadow-md dark:shadow-none dark:ring-1 dark:ring-white/10 p-6 flex flex-col h-[800px]">
-            <h2 className="text-xl font-medium text-slate-800 dark:text-slate-200 border-b border-slate-200 dark:border-slate-800 pb-4 mb-4">Past Prescriptions</h2>
-            <div className="flex gap-6 h-full">
-              <div className="w-1/3 border-r border-slate-200 dark:border-slate-800 pr-4 overflow-y-auto space-y-3">
+          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl shadow-sm overflow-hidden flex flex-col md:flex-row h-[800px]">
+            <div className="w-full md:w-1/3 border-r border-slate-200 dark:border-slate-800 flex flex-col bg-slate-50/50 dark:bg-slate-900/50">
+              <div className="p-4 border-b border-slate-200 dark:border-slate-800">
+                <h2 className="text-sm font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">Prescription Archive</h2>
+              </div>
+              <div className="flex-1 overflow-y-auto p-4 space-y-3">
                 {prescriptionHistory.length === 0 ? (
-                  <p className="text-slate-500 dark:text-slate-400 italic text-sm">No prescriptions generated yet.</p>
+                  <div className="text-center py-10">
+                    <p className="text-slate-500 dark:text-slate-400 text-sm">No prescriptions found.</p>
+                  </div>
                 ) : (
                   prescriptionHistory.map((p) => (
                     <button
                       key={p.id}
                       onClick={() => loadHistoryItem(p.id)}
-                      className={`w-full text-left p-4 border rounded-lg hover:bg-teal-50 dark:bg-teal-900/20 transition-colors ${viewingHistoryId === p.id ? 'border-teal-500 bg-teal-50 dark:bg-teal-900/20 ring-1 ring-teal-500' : 'border-slate-200 dark:border-slate-800'}`}
+                      className={`w-full text-left p-4 rounded-xl transition-all border ${
+                        viewingHistoryId === p.id 
+                          ? 'border-blue-500 bg-white dark:bg-slate-800 shadow-sm ring-1 ring-blue-500/20' 
+                          : 'border-transparent hover:border-slate-300 dark:hover:border-slate-700 bg-white dark:bg-slate-800 hover:shadow-sm'
+                      }`}
                     >
-                      <div className="font-semibold text-slate-800 dark:text-slate-200">{p.patient_name}</div>
-                      <div className="text-xs text-slate-500 dark:text-slate-400 mb-1">{new Date(p.timestamp).toLocaleString()}</div>
-                      <div className="text-sm text-slate-600 dark:text-slate-400 truncate">{p.diagnosis}</div>
+                      <div className="font-semibold text-slate-900 dark:text-slate-100">{p.patient_name}</div>
+                      <div className="text-xs text-slate-500 dark:text-slate-400 mt-1 mb-2">{new Date(p.timestamp).toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' })}</div>
+                      <div className="text-sm text-slate-600 dark:text-slate-400 line-clamp-1">{p.diagnosis}</div>
                     </button>
                   ))
                 )}
               </div>
-              <div className="w-2/3 h-full">
-                {historyHtml ? (
-                  <div className="w-full h-full border border-slate-300 dark:border-slate-700 rounded-lg overflow-hidden bg-white dark:bg-slate-900/80 dark:backdrop-blur-sm shadow-inner relative">
+            </div>
+            <div className="w-full md:w-2/3 p-6 flex flex-col bg-slate-100/50 dark:bg-slate-950/50">
+              {historyHtml ? (
+                <div className="flex-1 flex flex-col h-full bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 shadow-sm overflow-hidden">
+                  <div className="p-3 border-b border-slate-200 dark:border-slate-800 flex justify-end bg-slate-50 dark:bg-slate-800/50">
                     <button 
                       onClick={() => {
                         const printWindow = window.open('', '', 'width=900,height=700');
-                        printWindow?.document.write(historyHtml);
-                        printWindow?.document.close();
-                        printWindow?.focus();
-                        setTimeout(() => printWindow?.print(), 250);
-                      }}
-                      className="absolute top-2 right-2 bg-slate-800 dark:bg-slate-700 text-white text-xs px-3 py-1.5 rounded shadow hover:bg-gray-700 transition z-10"
-                    >
-                      Print / PDF
-                    </button>
-                    <iframe 
-                      srcDoc={historyHtml} 
-                      className="w-full h-full border-none"
-                      title="Past Prescription"
-                    />
-                  </div>
-                ) : viewingHistoryId ? (
-                  <div className="w-full h-full flex items-center justify-center text-slate-500 dark:text-slate-400">
-                    <div className="animate-spin h-8 w-8 border-4 border-teal-500 border-t-transparent rounded-full"></div>
-                  </div>
-                ) : (
-                  <div className="w-full h-full flex items-center justify-center text-gray-400 bg-slate-50 dark:bg-slate-800/50 rounded-lg border border-dashed border-slate-300 dark:border-slate-700">
-                    Select a prescription from the list to view
-                  </div>
-                )}
-              </div>
-            </div>
-          </div>
-        )}
-
-        {/* STEP 1: RECORD AUDIO */}
-        {(activeTab === 'doctor' || activeTab === 'developer') && (
-          <div className="bg-white dark:bg-slate-900/80 dark:backdrop-blur-sm rounded-xl shadow-md dark:shadow-none dark:ring-1 dark:ring-white/10 p-6 flex flex-col items-center space-y-6">
-          <div className="w-full flex justify-between items-center border-b border-slate-200 dark:border-slate-800 pb-4">
-            <h2 className="text-xl font-medium text-slate-800 dark:text-slate-200">
-              1. Input Audio <span className="text-sm text-indigo-500 ml-2">(Auto-translates to English)</span>
-            </h2>
-            <div className="flex items-center gap-4">
-              <label className="flex items-center gap-2 cursor-pointer bg-blue-50 dark:bg-blue-900/20 px-3 py-1.5 rounded-full border border-blue-200">
-                <input type="checkbox" checked={isLiveMode} onChange={(e) => setIsLiveMode(e.target.checked)} className="rounded text-blue-600 focus:ring-blue-500"/>
-                <span className="text-sm font-semibold text-blue-800 dark:text-blue-300 flex items-center gap-1"><Activity className="w-4 h-4"/> Live Transcription</span>
-              </label>
-              
-              <div className="flex items-center gap-2">
-                <label className="text-sm font-semibold text-slate-600 dark:text-slate-400">Spoken Language:</label>
-                <select
-                  value={spokenLang}
-                  onChange={(e) => setSpokenLang(e.target.value)}
-                  className="rounded-md border-slate-300 dark:border-slate-700 shadow-sm p-1.5 text-sm border focus:border-blue-500 focus:ring-blue-500 bg-white dark:bg-slate-900/80 dark:backdrop-blur-sm"
-                >
-                  <option value="auto">Auto-Detect Language</option>
-                  {languages.map(l => (
-                    <option key={`sp-${l.code}`} value={l.code}>
-                      {l.name}
-                    </option>
-                  ))}
-                </select>
-              </div>
-            </div>
-          </div>
-          
-          <div className="flex gap-4 pt-4">
-            {!isRecording ? (
-              <button
-                onClick={() => { setTranscription(''); startRecording(); }}
-                className="flex items-center gap-2 bg-red-50 dark:bg-red-900/20 hover:bg-red-600 hover:text-white text-red-600 dark:text-red-400 px-6 py-3 rounded-full font-medium transition-colors shadow-sm"
-              >
-                <Mic className="w-5 h-5" /> Start Recording
-              </button>
-            ) : (
-              <button
-                onClick={stopRecording}
-                className="flex items-center gap-2 bg-slate-800 dark:bg-slate-700 hover:bg-gray-900 text-white px-6 py-3 rounded-full font-medium transition-colors animate-pulse shadow-sm"
-              >
-                <Square className="w-5 h-5" /> Stop Recording
-              </button>
-            )}
-
-            {!isLiveMode && (
-              <>
-                <div className="flex items-center text-slate-500 dark:text-slate-400 px-2 font-medium">OR</div>
-                <label className="flex items-center gap-2 bg-white dark:bg-slate-900/80 dark:backdrop-blur-sm border-2 border-slate-200 dark:border-slate-800 hover:border-slate-300 dark:border-slate-700 hover:bg-slate-50 dark:bg-slate-800/50 text-slate-700 dark:text-slate-300 px-6 py-3 rounded-full font-medium cursor-pointer transition-colors shadow-sm">
-                  <Upload className="w-5 h-5" />
-                  Upload Audio
-                  <input type="file" accept="audio/*" className="hidden" onChange={handleFileUpload} />
-                </label>
-              </>
-            )}
-          </div>
-
-          {!isLiveMode && audioUrl && (
-            <div className="w-full max-w-md bg-slate-50 dark:bg-slate-800/50 rounded-lg p-4 flex flex-col items-center gap-4 border mt-4">
-              <span className="text-sm font-medium text-slate-600 dark:text-slate-400">Audio Ready</span>
-              <audio src={audioUrl} controls className="w-full h-10" />
-              <div className="flex gap-4 w-full justify-center">
-                <button
-                  onClick={clearAudio}
-                  className="text-red-500 hover:text-red-700 dark:text-red-400 text-sm flex items-center gap-1 font-medium"
-                >
-                  <Trash2 className="w-4 h-4" /> Remove
-                </button>
-                <button
-                  onClick={handleTranscribe}
-                  disabled={isTranscribing}
-                  className="bg-blue-600 hover:bg-blue-700 disabled:bg-blue-300 text-white px-6 py-2 rounded-md font-medium transition-colors"
-                >
-                  {isTranscribing ? 'Streaming via WebSocket...' : 'Transcribe Audio'}
-                </button>
-              </div>
-            </div>
-          )}
-        </div>
-        )}
-
-        {/* STEP 2: TRANSCRIPTION */}
-        {(activeTab === 'doctor' || activeTab === 'developer') && (transcription || isTranscribing) && (
-          <div className="w-full">
-            
-            {/* Transcription Panel */}
-            <div className={`bg-white dark:bg-slate-900/80 dark:backdrop-blur-sm rounded-xl shadow-md dark:shadow-none dark:ring-1 dark:ring-white/10 p-6 flex flex-col h-full border-t-4 border-indigo-500`}>
-              <div className="flex justify-between items-center mb-4">
-                <h3 className="font-semibold text-lg text-slate-800 dark:text-slate-200">
-                  2. Transcription & Translation (English)
-                </h3>
-                {transcription && (
-                  <button onClick={() => copyToClipboard(transcription)} className="text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:text-slate-300 flex items-center gap-1 text-sm font-medium">
-                    <Copy className="w-4 h-4" /> Copy
-                  </button>
-                )}
-              </div>
-              <textarea
-                className={`w-full flex-grow p-4 border rounded-md resize-none min-h-[200px] focus:ring-indigo-500 focus:border-indigo-500 bg-indigo-50/30 dark:bg-indigo-900/10`}
-                value={transcription}
-                onChange={(e) => setTranscription(e.target.value)}
-                placeholder={isTranscribing ? "Streaming audio to Sarvam via WebSocket... please wait." : "Result will appear here... (You can edit it)"}
-                disabled={isTranscribing && !isLiveMode}
-              />
-            </div>
-          </div>
-        )}
-
-        {/* PRESCRIPTION PIPELINE PANEL */}
-        {(activeTab === 'doctor' || activeTab === 'developer') && transcription && (
-          <div className="bg-white dark:bg-slate-900/80 dark:backdrop-blur-sm rounded-xl shadow-md dark:shadow-none dark:ring-1 dark:ring-white/10 p-6 mt-8 border-t-4 border-teal-500">
-            <div className="flex justify-between items-center mb-4">
-              <h2 className="text-xl font-medium text-slate-800 dark:text-slate-200 flex items-center gap-2">
-                💊 Prescription Generation (AI)
-              </h2>
-              {activeTab === 'doctor' ? (
-                <button
-                  onClick={handleDoctorGenerate}
-                  disabled={isExtracting || isGenerating || !transcription.trim()}
-                  className="bg-teal-600 hover:bg-teal-700 disabled:bg-teal-300 text-white px-6 py-3 rounded-lg font-bold shadow-lg transition-colors flex items-center gap-2"
-                >
-                  {(isExtracting || isGenerating) ? (
-                    <><div className="animate-spin h-4 w-4 border-2 border-white border-t-transparent rounded-full"></div> Processing Patient...</>
-                  ) : 'Generate Digital Prescription'}
-                </button>
-              ) : (
-                <button
-                  onClick={handleExtractAndMap}
-                  disabled={isExtracting || !transcription.trim()}
-                  className="bg-teal-600 hover:bg-teal-700 disabled:bg-teal-300 text-white px-4 py-2 rounded-md font-medium transition-colors"
-                >
-                  {isExtracting ? 'Extracting & Mapping...' : '1. Extract Drugs & Map to DB'}
-                </button>
-              )}
-            </div>
-
-            {pipelineMetrics && (
-              <div className="flex gap-4 mb-4 text-xs flex-wrap">
-                <div className="bg-teal-50 dark:bg-teal-900/20 text-teal-800 dark:text-teal-300 px-3 py-1.5 rounded border border-teal-200">
-                  <span className="font-semibold">LLM Extraction:</span> {(pipelineMetrics.extractMs / 1000).toFixed(2)}s
-                </div>
-                <div className="bg-teal-50 dark:bg-teal-900/20 text-teal-800 dark:text-teal-300 px-3 py-1.5 rounded border border-teal-200">
-                  <span className="font-semibold">DB Mapping:</span> {(pipelineMetrics.mapMs / 1000).toFixed(2)}s
-                </div>
-                {pipelineMetrics.generateMs !== undefined && (
-                  <div className="bg-teal-50 dark:bg-teal-900/20 text-teal-800 dark:text-teal-300 px-3 py-1.5 rounded border border-teal-200">
-                    <span className="font-semibold">LLM Generation:</span> {(pipelineMetrics.generateMs / 1000).toFixed(2)}s
-                  </div>
-                )}
-                <div className="bg-teal-100 text-teal-900 px-3 py-1.5 rounded border border-teal-300 font-bold">
-                  <span>Total Pipeline:</span> {((pipelineMetrics.extractMs + pipelineMetrics.mapMs + (pipelineMetrics.generateMs || 0)) / 1000).toFixed(2)}s
-                </div>
-              </div>
-            )}
-
-            {activeTab === 'developer' && mappedDrugs.length > 0 && (
-              <div className="space-y-4">
-                <h3 className="font-semibold text-slate-700 dark:text-slate-300">Identified Medications & Candidates:</h3>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  {mappedDrugs.map((drug, i) => (
-                    <div key={i} className="border rounded-lg p-4 bg-teal-50 dark:bg-teal-900/20 border-teal-100">
-                      <p className="font-medium text-teal-800 dark:text-teal-300 mb-2">Original: <span className="font-bold">"{drug.original_extracted_word}"</span></p>
-                      <div className="space-y-4">
-                        {/* Phonetic Matches */}
-                        {drug.top_phonetic && drug.top_phonetic.length > 0 && (
-                          <div className="space-y-2">
-                            <h4 className="text-xs font-bold text-purple-700 uppercase tracking-wider mb-1 border-b border-slate-200 dark:border-slate-800 border-purple-200 pb-1">Top Phonetic Matches</h4>
-                            {drug.top_phonetic.map((match: any, j: number) => (
-                              <div key={`p-${j}`} className="text-sm flex flex-col bg-white dark:bg-slate-900/80 dark:backdrop-blur-sm p-2 rounded border border-purple-100 shadow-sm">
-                                <div className="flex justify-between items-start mb-1">
-                                  <p className="font-semibold text-slate-800 dark:text-slate-200">{match.brand_name}</p>
-                                </div>
-                                {match.salt && <p className="text-slate-500 dark:text-slate-400 text-xs leading-tight">{match.salt}</p>}
-                              </div>
-                            ))}
-                          </div>
-                        )}
-
-                        {/* Fuzzy Matches */}
-                        {drug.top_fuzzy && drug.top_fuzzy.length > 0 && (
-                          <div className="space-y-2 pt-2">
-                            <h4 className="text-xs font-bold text-blue-700 uppercase tracking-wider mb-1 border-b border-slate-200 dark:border-slate-800 border-blue-200 pb-1">Top Fuzzy Matches</h4>
-                            {drug.top_fuzzy.map((match: any, j: number) => (
-                              <div key={`f-${j}`} className="text-sm flex flex-col bg-white dark:bg-slate-900/80 dark:backdrop-blur-sm p-2 rounded border border-blue-100 shadow-sm">
-                                <div className="flex justify-between items-start mb-1">
-                                  <p className="font-semibold text-slate-800 dark:text-slate-200">{match.brand_name}</p>
-                                  <span className="text-blue-600 font-mono text-[10px]">Score: {Math.round(match.score)}</span>
-                                </div>
-                                {match.salt && <p className="text-slate-500 dark:text-slate-400 text-xs leading-tight">{match.salt}</p>}
-                              </div>
-                            ))}
-                          </div>
-                        )}
-                        
-                        {(!drug.top_phonetic || drug.top_phonetic.length === 0) && (!drug.top_fuzzy || drug.top_fuzzy.length === 0) && (
-                          <p className="text-sm text-red-500 italic">No matches found.</p>
-                        )}
-                      </div>
-                    </div>
-                  ))}
-                </div>
-
-                <div className="mt-8 flex justify-center">
-                  <button
-                    onClick={handleGenerate}
-                    disabled={isGenerating}
-                    className="bg-blue-600 hover:bg-blue-700 text-white font-semibold py-3 px-8 rounded-lg shadow-md dark:shadow-none dark:ring-1 dark:ring-white/10 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
-                  >
-                    {isGenerating ? (
-                      <>
-                        <div className="animate-spin h-5 w-5 border-2 border-white border-t-transparent rounded-full"></div>
-                        Generating PDF Prescription...
-                      </>
-                    ) : (
-                      '2. Generate Digital Prescription (MedGemma AI)'
-                    )}
-                  </button>
-                </div>
-              </div>
-            )}
-
-            {prescriptionHtml && (
-              <div className="mt-8 border-t border-slate-200 dark:border-slate-800 pt-8">
-                <h3 className="font-semibold text-slate-700 dark:text-slate-300 mb-4 flex items-center justify-between">
-                  Final Digital Prescription (Editable)
-                  <button 
-                    onClick={async () => {
-                      try {
-                        setIsSaving(true);
-                        
-                        // Get edited HTML from iframe if possible, fallback to state
-                        let finalHtml = prescriptionHtml;
-                        try {
-                          if (iframeRef.current && iframeRef.current.contentDocument) {
-                            finalHtml = iframeRef.current.contentDocument.documentElement.outerHTML;
-                            // Clean up contenteditable for saving/printing
-                            finalHtml = finalHtml.replace(/contenteditable="true"/g, '');
-                          }
-                        } catch (e) {
-                          console.error("Could not read from iframe", e);
-                          finalHtml = finalHtml.replace(/contenteditable="true"/g, '');
+                        if (printWindow) {
+                          printWindow.document.write(historyHtml);
+                          printWindow.document.close();
+                          printWindow.print();
                         }
-
-                        // Save to DB
-                        await savePrescription(finalHtml, patientName, diagnosis);
-
-                        // Open Print Window
-                        const printWindow = window.open('', '', 'width=900,height=700');
-                        printWindow?.document.write(finalHtml);
-                        printWindow?.document.close();
-                        printWindow?.focus();
-                        setTimeout(() => printWindow?.print(), 250);
-                      } catch (err: any) {
-                        alert('Failed to save prescription: ' + (err.message || 'Unknown error'));
-                      } finally {
-                        setIsSaving(false);
-                      }
-                    }}
-                    disabled={isSaving}
-                    className="bg-slate-800 dark:bg-slate-700 text-white text-sm px-4 py-2 rounded shadow hover:bg-gray-700 transition disabled:opacity-50"
-                  >
-                    {isSaving ? 'Saving...' : '💾 Print & Save'}
-                  </button>
-                </h3>
-                <div className="border border-slate-300 dark:border-slate-700 rounded-lg overflow-hidden bg-white dark:bg-slate-900/80 dark:backdrop-blur-sm shadow-inner" style={{ height: '800px' }}>
+                      }}
+                      className="text-xs font-medium bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 px-3 py-1.5 rounded-md hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors shadow-sm text-slate-700 dark:text-slate-200"
+                    >
+                      Print Document
+                    </button>
+                  </div>
                   <iframe 
-                    ref={iframeRef}
-                    srcDoc={prescriptionHtml} 
-                    className="w-full h-full border-none"
+                    srcDoc={historyHtml} 
+                    className="w-full h-full border-none bg-white"
                     title="Prescription Preview"
                   />
                 </div>
-              </div>
-            )}
+              ) : viewingHistoryId ? (
+                <div className="w-full h-full flex items-center justify-center">
+                  <div className="animate-spin h-6 w-6 border-2 border-blue-500 border-t-transparent rounded-full"></div>
+                </div>
+              ) : (
+                <div className="w-full h-full flex flex-col items-center justify-center text-slate-400 dark:text-slate-500">
+                  <Activity className="w-12 h-12 mb-4 opacity-20" />
+                  <p>Select a prescription to view.</p>
+                </div>
+              )}
+            </div>
           </div>
         )}
 
-        {/* USAGE DB PANEL */}
+        {/* --- DOCTOR & DEVELOPER TABS --- */}
+        {(activeTab === 'doctor' || activeTab === 'developer') && (
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
+            
+            {/* LEFT COLUMN: Input & STT */}
+            <div className={`flex flex-col gap-6 ${prescriptionHtml ? 'lg:col-span-5' : 'lg:col-span-8 lg:col-start-3'}`}>
+              
+              <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl shadow-sm p-6">
+                <div className="flex items-center justify-between mb-6">
+                  <h2 className="text-lg font-semibold text-slate-900 dark:text-slate-100 flex items-center gap-2">
+                    <Mic className="w-5 h-5 text-blue-500" /> Dictation
+                  </h2>
+                  <label className="flex items-center gap-2 cursor-pointer bg-blue-50 dark:bg-blue-900/20 px-3 py-1.5 rounded-lg border border-blue-100 dark:border-blue-900/50 hover:bg-blue-100 dark:hover:bg-blue-900/40 transition-colors">
+                    <input type="checkbox" checked={isLiveMode} onChange={(e) => setIsLiveMode(e.target.checked)} className="rounded text-blue-600 focus:ring-blue-500 border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800" />
+                    <span className="text-xs font-semibold text-blue-700 dark:text-blue-300 uppercase tracking-wider">Live Mode</span>
+                  </label>
+                </div>
+
+                <div className="space-y-6">
+                  <div>
+                    <label className="block text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-2">Spoken Language</label>
+                    <select
+                      value={spokenLang}
+                      onChange={(e) => setSpokenLang(e.target.value)}
+                      className="w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg p-2.5 text-sm text-slate-900 dark:text-slate-100 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 transition-all outline-none appearance-none"
+                    >
+                      <option value="auto">Auto-Detect Language</option>
+                      {languages.map(l => (
+                        <option key={l.code} value={l.code}>{l.name}</option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <div className="flex flex-col sm:flex-row gap-3">
+                    {!isRecording ? (
+                      <button
+                        onClick={() => { setTranscription(''); startRecording(); }}
+                        className="flex-1 flex items-center justify-center gap-2 bg-slate-900 hover:bg-slate-800 dark:bg-white dark:hover:bg-slate-100 text-white dark:text-slate-900 px-6 py-3 rounded-xl font-medium transition-colors shadow-sm"
+                      >
+                        <Mic className="w-4 h-4" /> Start Recording
+                      </button>
+                    ) : (
+                      <button
+                        onClick={stopRecording}
+                        className="flex-1 flex items-center justify-center gap-2 bg-red-500 hover:bg-red-600 text-white px-6 py-3 rounded-xl font-medium transition-colors shadow-sm animate-pulse"
+                      >
+                        <Square className="w-4 h-4" /> Stop
+                      </button>
+                    )}
+                  </div>
+
+                  {audioUrl && !isLiveMode && (
+                    <div className="pt-4 border-t border-slate-100 dark:border-slate-800 space-y-4">
+                      <audio src={audioUrl} controls className="w-full h-10 rounded-lg bg-slate-50 dark:bg-slate-800" />
+                      <div className="flex gap-3">
+                        <button
+                          onClick={handleTranscribe}
+                          disabled={isTranscribing}
+                          className="flex-1 bg-blue-50 dark:bg-blue-900/20 hover:bg-blue-100 dark:hover:bg-blue-900/40 text-blue-700 dark:text-blue-300 border border-blue-200 dark:border-blue-800/50 px-4 py-2.5 rounded-lg text-sm font-medium transition-colors disabled:opacity-50"
+                        >
+                          {isTranscribing ? 'Processing...' : 'Transcribe'}
+                        </button>
+                        <button
+                          onClick={clearAudio}
+                          className="px-4 py-2.5 rounded-lg text-sm font-medium text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
+                        >
+                          Discard
+                        </button>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {(transcription || isTranscribing) && (
+                <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl shadow-sm flex flex-col h-full overflow-hidden">
+                  <div className="bg-slate-50 dark:bg-slate-800/50 p-4 border-b border-slate-200 dark:border-slate-800 flex justify-between items-center">
+                    <h3 className="text-sm font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 flex items-center gap-2">
+                      <Languages className="w-4 h-4" /> Transcript (English)
+                    </h3>
+                    {transcription && (
+                      <button onClick={() => copyToClipboard(transcription)} className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 transition-colors">
+                        <Copy className="w-4 h-4" />
+                      </button>
+                    )}
+                  </div>
+                  <textarea
+                    className="w-full flex-1 p-5 bg-transparent resize-none min-h-[200px] outline-none text-slate-700 dark:text-slate-300 text-base leading-relaxed placeholder-slate-400 dark:placeholder-slate-500"
+                    value={transcription}
+                    onChange={(e) => setTranscription(e.target.value)}
+                    placeholder={isTranscribing ? "Listening and streaming to AI..." : "Transcript will appear here. Feel free to edit it manually before generating."}
+                    disabled={isTranscribing && !isLiveMode}
+                  />
+                  
+                  {transcription && (
+                    <div className="p-4 border-t border-slate-100 dark:border-slate-800 bg-white dark:bg-slate-900">
+                      {activeTab === 'doctor' ? (
+                        <button
+                          onClick={handleDoctorGenerate}
+                          disabled={isExtracting || isGenerating || !transcription.trim()}
+                          className="w-full bg-blue-600 hover:bg-blue-700 disabled:bg-blue-400 dark:disabled:bg-blue-800 text-white px-6 py-3.5 rounded-xl font-semibold shadow-sm transition-all flex items-center justify-center gap-2"
+                        >
+                          {(isExtracting || isGenerating) ? (
+                            <><div className="animate-spin h-4 w-4 border-2 border-white/30 border-t-white rounded-full"></div> Analyzing...</>
+                          ) : 'Generate Rx'}
+                        </button>
+                      ) : (
+                        <button
+                          onClick={handleExtractAndMap}
+                          disabled={isExtracting || !transcription.trim()}
+                          className="w-full bg-slate-800 hover:bg-slate-900 dark:bg-slate-700 dark:hover:bg-slate-600 text-white px-6 py-3 rounded-xl font-medium transition-colors flex justify-center"
+                        >
+                          {isExtracting ? 'Extracting...' : 'Extract & Map to Database'}
+                        </button>
+                      )}
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+
+            {/* RIGHT COLUMN: Output & Preview */}
+            <div className={`${prescriptionHtml ? 'lg:col-span-7' : 'hidden'}`}>
+              {prescriptionHtml && (
+                <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl shadow-sm overflow-hidden h-[calc(100vh-10rem)] min-h-[700px] flex flex-col">
+                  
+                  <div className="bg-slate-50 dark:bg-slate-800/50 p-4 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between">
+                    <h3 className="text-sm font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">Digital Prescription</h3>
+                    <button 
+                      onClick={handleSavePrescription}
+                      disabled={isSaving}
+                      className="bg-green-600 hover:bg-green-700 disabled:opacity-50 text-white text-xs font-semibold px-4 py-2 rounded-lg shadow-sm transition-colors flex items-center gap-2"
+                    >
+                      {isSaving ? (
+                        <><div className="animate-spin h-3 w-3 border-2 border-white/30 border-t-white rounded-full"></div> Saving...</>
+                      ) : 'Save to History'}
+                    </button>
+                  </div>
+                  
+                  {pipelineMetrics && (
+                    <div className="px-4 py-2 border-b border-slate-100 dark:border-slate-800 flex gap-4 text-[10px] uppercase font-bold tracking-widest text-slate-400">
+                       <span>Extract: {(pipelineMetrics.extractMs / 1000).toFixed(2)}s</span>
+                       <span>Map: {(pipelineMetrics.mapMs / 1000).toFixed(2)}s</span>
+                       {pipelineMetrics.generateMs && <span>Gen: {(pipelineMetrics.generateMs / 1000).toFixed(2)}s</span>}
+                    </div>
+                  )}
+
+                  <div className="flex-1 bg-slate-100 dark:bg-slate-950 p-6 overflow-hidden relative">
+                    <div className="w-full h-full bg-white rounded-lg shadow-sm ring-1 ring-slate-200/50 overflow-hidden relative">
+                      {isGenerating && (
+                        <div className="absolute inset-0 bg-white/80 dark:bg-slate-900/80 backdrop-blur flex items-center justify-center z-10">
+                          <div className="flex flex-col items-center gap-3">
+                            <div className="animate-spin h-8 w-8 border-3 border-blue-500 border-t-transparent rounded-full"></div>
+                            <span className="text-sm font-medium text-slate-600 dark:text-slate-300">Structuring Document...</span>
+                          </div>
+                        </div>
+                      )}
+                      <iframe 
+                        ref={iframeRef}
+                        srcDoc={prescriptionHtml} 
+                        className="w-full h-full border-none bg-white"
+                        title="Prescription Preview"
+                      />
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* DEVELOPER DEBUG PANEL (Appears below in Dev tab) */}
+        {activeTab === 'developer' && mappedDrugs.length > 0 && (
+          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl shadow-sm p-6 space-y-6">
+            <h3 className="text-sm font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">Entity Resolution Pipeline</h3>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              {mappedDrugs.map((drug, i) => (
+                <div key={i} className="bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700 rounded-xl p-4">
+                  <p className="font-medium text-slate-700 dark:text-slate-300 mb-3 text-sm">Target: <span className="font-bold text-blue-600 dark:text-blue-400">"{drug.original_extracted_word}"</span></p>
+                  
+                  <div className="space-y-4">
+                    {drug.top_phonetic && drug.top_phonetic.length > 0 && (
+                      <div>
+                        <h4 className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-2">Phonetic Matches</h4>
+                        <div className="space-y-2">
+                          {drug.top_phonetic.map((match: any, j: number) => (
+                            <div key={`p-${j}`} className="bg-white dark:bg-slate-800 border border-slate-100 dark:border-slate-700 p-2.5 rounded-lg shadow-sm">
+                              <p className="font-semibold text-slate-800 dark:text-slate-200 text-sm">{match.brand_name}</p>
+                              {match.salt && <p className="text-slate-500 dark:text-slate-400 text-xs mt-0.5 truncate">{match.salt}</p>}
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                    
+                    {drug.top_fuzzy && drug.top_fuzzy.length > 0 && (
+                      <div>
+                        <h4 className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-2">Fuzzy Matches</h4>
+                        <div className="space-y-2">
+                          {drug.top_fuzzy.map((match: any, j: number) => (
+                            <div key={`f-${j}`} className="bg-white dark:bg-slate-800 border border-slate-100 dark:border-slate-700 p-2.5 rounded-lg shadow-sm flex flex-col">
+                              <div className="flex justify-between items-start">
+                                <p className="font-semibold text-slate-800 dark:text-slate-200 text-sm truncate pr-2">{match.brand_name}</p>
+                                <span className="text-[10px] font-mono bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300 px-1.5 py-0.5 rounded flex-shrink-0">s:{Math.round(match.score)}</span>
+                              </div>
+                              {match.salt && <p className="text-slate-500 dark:text-slate-400 text-xs mt-0.5 truncate">{match.salt}</p>}
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              ))}
+            </div>
+            
+            <div className="pt-6 flex justify-end">
+              <button
+                onClick={handleGenerate}
+                disabled={isGenerating}
+                className="bg-slate-900 hover:bg-slate-800 dark:bg-white dark:hover:bg-slate-100 text-white dark:text-slate-900 px-6 py-3 rounded-xl font-medium shadow-sm transition-all disabled:opacity-50"
+              >
+                {isGenerating ? 'Generating...' : 'Run Generation Step'}
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* --- USAGE LOGS TAB --- */}
         {activeTab === 'usage' && (
-          <div className="bg-white dark:bg-slate-900/80 dark:backdrop-blur-sm rounded-xl shadow-md dark:shadow-none dark:ring-1 dark:ring-white/10 p-6 mt-8 border-t-4 border-green-500">
-          <h2 className="text-xl font-medium text-slate-800 dark:text-slate-200 mb-4 flex items-center gap-2">
-            📊 Cost & Usage Logs
-          </h2>
-          
-          <div className="space-y-8">
+          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl shadow-sm p-6 space-y-8">
+            <h2 className="text-lg font-semibold text-slate-900 dark:text-slate-100">Billing & Usage</h2>
+            
             <div>
-              <h3 className="text-lg font-medium text-slate-700 dark:text-slate-300 mb-2">Transcription Logs</h3>
-              <div className="overflow-x-auto border rounded-md">
+              <h3 className="text-sm font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-4">Transcription Operations</h3>
+              <div className="border border-slate-200 dark:border-slate-800 rounded-xl overflow-x-auto">
                 <table className="min-w-full text-left text-sm whitespace-nowrap">
-                  <thead className="uppercase tracking-wider border-b border-slate-200 dark:border-slate-800-2 border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-400 bg-slate-50 dark:bg-slate-800/50">
+                  <thead className="bg-slate-50 dark:bg-slate-800/50 border-b border-slate-200 dark:border-slate-800 text-slate-500 dark:text-slate-400 font-semibold">
                     <tr>
-                      <th scope="col" className="px-6 py-3">Time</th>
-                      <th scope="col" className="px-6 py-3">Duration (sec)</th>
-                      <th scope="col" className="px-6 py-3">Cost (INR)</th>
-                      <th scope="col" className="px-6 py-3">Text Sample</th>
+                      <th className="px-6 py-4">Timestamp</th>
+                      <th className="px-6 py-4">Duration</th>
+                      <th className="px-6 py-4">Cost (INR)</th>
+                      <th className="px-6 py-4">Preview</th>
                     </tr>
                   </thead>
-                  <tbody>
+                  <tbody className="divide-y divide-slate-100 dark:divide-slate-800/50">
                     {(usageStats?.transcriptions || []).map((stat: any, i: number) => (
-                      <tr key={i} className="border-b border-slate-200 dark:border-slate-800 border-gray-100 hover:bg-slate-50 dark:bg-slate-800/50">
-                        <td className="px-6 py-3">{new Date(stat.timestamp).toLocaleString()}</td>
-                        <td className="px-6 py-3">{stat.duration_seconds.toFixed(2)}s</td>
-                        <td className="px-6 py-3 font-semibold text-green-600">₹{stat.cost_inr.toFixed(4)}</td>
-                        <td className="px-6 py-3 text-slate-500 dark:text-slate-400 truncate max-w-xs" title={stat.transcription_text}>{stat.transcription_text}</td>
+                      <tr key={i} className="hover:bg-slate-50 dark:hover:bg-slate-800/20">
+                        <td className="px-6 py-4 text-slate-600 dark:text-slate-300">{new Date(stat.timestamp).toLocaleString()}</td>
+                        <td className="px-6 py-4 text-slate-600 dark:text-slate-300">{stat.duration_seconds.toFixed(1)}s</td>
+                        <td className="px-6 py-4 font-mono font-medium text-emerald-600 dark:text-emerald-400">₹{stat.cost_inr.toFixed(4)}</td>
+                        <td className="px-6 py-4 text-slate-400 truncate max-w-xs">{stat.transcription_text}</td>
                       </tr>
                     ))}
                     {(!usageStats?.transcriptions || usageStats.transcriptions.length === 0) && (
-                      <tr>
-                        <td colSpan={4} className="px-6 py-4 text-center text-slate-500 dark:text-slate-400">No transcriptions logged yet.</td>
-                      </tr>
+                      <tr><td colSpan={4} className="px-6 py-8 text-center text-slate-400">No records found.</td></tr>
                     )}
                   </tbody>
                 </table>
               </div>
             </div>
-
+            
             <div>
-              <h3 className="text-lg font-medium text-slate-700 dark:text-slate-300 mb-2">Translation Logs</h3>
-              <div className="overflow-x-auto border rounded-md">
+              <h3 className="text-sm font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-4">Translation Operations</h3>
+              <div className="border border-slate-200 dark:border-slate-800 rounded-xl overflow-x-auto">
                 <table className="min-w-full text-left text-sm whitespace-nowrap">
-                  <thead className="uppercase tracking-wider border-b border-slate-200 dark:border-slate-800-2 border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-400 bg-slate-50 dark:bg-slate-800/50">
+                  <thead className="bg-slate-50 dark:bg-slate-800/50 border-b border-slate-200 dark:border-slate-800 text-slate-500 dark:text-slate-400 font-semibold">
                     <tr>
-                      <th scope="col" className="px-6 py-3">Time</th>
-                      <th scope="col" className="px-6 py-3">Route</th>
-                      <th scope="col" className="px-6 py-3">Length (chars)</th>
-                      <th scope="col" className="px-6 py-3">Latency (ms)</th>
+                      <th className="px-6 py-4">Timestamp</th>
+                      <th className="px-6 py-4">Route</th>
+                      <th className="px-6 py-4">Length</th>
+                      <th className="px-6 py-4">Latency</th>
                     </tr>
                   </thead>
-                  <tbody>
+                  <tbody className="divide-y divide-slate-100 dark:divide-slate-800/50">
                     {(usageStats?.translations || []).map((stat: any, i: number) => (
-                      <tr key={i} className="border-b border-slate-200 dark:border-slate-800 border-gray-100 hover:bg-slate-50 dark:bg-slate-800/50">
-                        <td className="px-6 py-3">{new Date(stat.timestamp).toLocaleString()}</td>
-                        <td className="px-6 py-3 font-medium text-indigo-600">{stat.source_language} ➔ {stat.target_language}</td>
-                        <td className="px-6 py-3">{stat.text_length} chars</td>
-                        <td className="px-6 py-3">{stat.translation_time_ms} ms</td>
+                      <tr key={i} className="hover:bg-slate-50 dark:hover:bg-slate-800/20">
+                        <td className="px-6 py-4 text-slate-600 dark:text-slate-300">{new Date(stat.timestamp).toLocaleString()}</td>
+                        <td className="px-6 py-4 font-medium text-slate-900 dark:text-slate-100">{stat.source_language} → {stat.target_language}</td>
+                        <td className="px-6 py-4 text-slate-600 dark:text-slate-300">{stat.text_length} chars</td>
+                        <td className="px-6 py-4 text-slate-600 dark:text-slate-300">{stat.translation_time_ms} ms</td>
                       </tr>
                     ))}
                     {(!usageStats?.translations || usageStats.translations.length === 0) && (
-                      <tr>
-                        <td colSpan={4} className="px-6 py-4 text-center text-slate-500 dark:text-slate-400">No translations logged yet.</td>
-                      </tr>
+                      <tr><td colSpan={4} className="px-6 py-8 text-center text-slate-400">No records found.</td></tr>
                     )}
                   </tbody>
                 </table>
               </div>
             </div>
           </div>
-        </div>
         )}
 
-      </div>
+      </main>
     </div>
   );
 }
-
 
