@@ -263,10 +263,11 @@ INSTRUCTIONS:
 1. Extract all clinical details (chief complaint, vitals, history, etc.) from the transcript. Extract Patient Name, Age, and Gender if mentioned. If something is not mentioned, use "N/A" or leave empty.
 2. Identify the medications prescribed in the transcript.
 3. For each medication, decisively select the **single BEST matching brand_name** from the provided "MAPPED MEDICATIONS" list. 
-   - Analyze the transcript's context (disease/symptoms) and compare it against the "salt" (active ingredient) of the phonetic and fuzzy matches to resolve ambiguous names.
-   - You MUST pick the most clinically logical medication from the provided candidates.
-   - Do NOT output "UNVERIFIED". You are an expert AI—make the most educated choice.
-   - Do NOT invent a medication name. It MUST be an exact string from the provided lists.
+   - CRITICAL: You MUST select the 'brand_name' from either the 'auto_picked', 'top_phonetic', or 'top_fuzzy' arrays. 
+   - NEVER output the 'original_extracted_word'.
+   - If 'auto_picked' exists for a drug, YOU MUST strictly use its 'brand_name'.
+   - If 'auto_picked' is null, analyze the transcript's context (disease/symptoms) and compare it against the "salt" (active ingredient) of the phonetic and fuzzy matches to pick the most logical 'brand_name'.
+   - Do NOT invent a medication name. It MUST be an exact 'brand_name' string from the provided candidates.
 4. Extract the following for each medication:
    - **dose**: The amount to take (e.g., "1 Tablet", "10 ml", "50 mg").
    - **route**: Infer this from the selected brand_name. If the name contains "Tablet", "Capsule", or "Suspension", set route to "Oral". If it contains "Injection", set to "Subcutaneous / IM / IV". If it contains "Cream" or "Ointment", set to "Topical".

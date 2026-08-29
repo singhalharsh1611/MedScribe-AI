@@ -20,7 +20,7 @@ export const logUsage = async (durationSeconds: number, transcriptionText: strin
   const costInr = (durationSeconds / 3600) * 30.00;
   
   const query = `
-    INSERT INTO usage (duration_seconds, cost_inr, transcription_text, timestamp) VALUES ($1, $2, $3, CURRENT_TIMESTAMP AT TIME ZONE 'UTC' AT TIME ZONE 'Asia/Kolkata') RETURNING id
+    INSERT INTO usage (duration_seconds, cost_inr, transcription_text, timestamp) VALUES ($1, $2, $3, CURRENT_TIMESTAMP) RETURNING id
   `;
   
   const result = await pool.query(query, [durationSeconds, costInr, transcriptionText]);
@@ -30,7 +30,7 @@ export const logUsage = async (durationSeconds: number, transcriptionText: strin
 export const logTranslation = async (sourceLanguage: string, targetLanguage: string, textLength: number, translationTimeMs: number) => {
   const costInr = (textLength / 1000) * 2.00;
   const query = `
-    INSERT INTO translation_logs (source_language, target_language, text_length, translation_time_ms, timestamp, cost_inr) VALUES ($1, $2, $3, $4, CURRENT_TIMESTAMP AT TIME ZONE 'UTC' AT TIME ZONE 'Asia/Kolkata', $5) RETURNING id
+    INSERT INTO translation_logs (source_language, target_language, text_length, translation_time_ms, timestamp, cost_inr) VALUES ($1, $2, $3, $4, CURRENT_TIMESTAMP, $5) RETURNING id
   `;
   
   const result = await pool.query(query, [sourceLanguage, targetLanguage, textLength, translationTimeMs, costInr]);
@@ -49,7 +49,7 @@ export const getUsageStats = async () => {
 
 export const savePrescription = async (patientName: string, diagnosis: string, htmlContent: string, transcriptionText: string = '') => {
   const query = `
-    INSERT INTO prescriptions (patient_name, diagnosis, html_content, transcription_text, timestamp) VALUES ($1, $2, $3, $4, CURRENT_TIMESTAMP AT TIME ZONE 'UTC' AT TIME ZONE 'Asia/Kolkata') RETURNING id
+    INSERT INTO prescriptions (patient_name, diagnosis, html_content, transcription_text, timestamp) VALUES ($1, $2, $3, $4, CURRENT_TIMESTAMP) RETURNING id
   `;
   
   const result = await pool.query(query, [patientName || 'Unknown Patient', diagnosis || 'Unknown Diagnosis', htmlContent, transcriptionText]);
