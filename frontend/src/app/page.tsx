@@ -356,7 +356,7 @@ export default function TranslatorApp() {
   };
 
   return (
-    <div className="min-h-screen bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100 transition-colors duration-300 flex flex-col font-sans">
+    <div className="min-h-screen bg-slate-50/50 dark:bg-[#0B1120] text-slate-900 dark:text-slate-100 transition-colors duration-300 flex flex-col font-sans">
       
       <Header 
         activeTab={activeTab} 
@@ -425,6 +425,7 @@ export default function TranslatorApp() {
                 pipelineMetrics={pipelineMetrics}
                 isGenerating={isGenerating}
                 iframeRef={iframeRef}
+                activeTab={activeTab as 'doctor' | 'developer'}
               />
             </div>
           </div>
@@ -436,6 +437,7 @@ export default function TranslatorApp() {
             mappedDrugs={mappedDrugs}
             isGenerating={isGenerating}
             handleGenerate={handleGenerate}
+            pipelineMetrics={pipelineMetrics}
           />
         )}
 
@@ -448,3 +450,5 @@ export default function TranslatorApp() {
     </div>
   );
 }
+
+

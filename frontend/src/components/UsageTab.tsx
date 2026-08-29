@@ -9,12 +9,12 @@ interface UsageTabProps {
 
 export function UsageTab({ usageStats }: UsageTabProps) {
   return (
-    <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl shadow-sm p-6 space-y-8">
+    <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800/60 rounded-3xl shadow-sm shadow-slate-200/50 dark:shadow-none p-6 space-y-8">
       <h2 className="text-lg font-semibold text-slate-900 dark:text-slate-100">Billing & Usage</h2>
       
       <div>
         <h3 className="text-sm font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-4">Transcription Operations</h3>
-        <div className="border border-slate-200 dark:border-slate-800 rounded-xl overflow-x-auto">
+        <div className="border border-slate-200 dark:border-slate-800 rounded-2xl overflow-x-auto">
           <table className="min-w-full text-left text-sm whitespace-nowrap">
             <thead className="bg-slate-50 dark:bg-slate-800/50 border-b border-slate-200 dark:border-slate-800 text-slate-500 dark:text-slate-400 font-semibold">
               <tr>
@@ -43,7 +43,7 @@ export function UsageTab({ usageStats }: UsageTabProps) {
       
       <div>
         <h3 className="text-sm font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-4">Translation Operations</h3>
-        <div className="border border-slate-200 dark:border-slate-800 rounded-xl overflow-x-auto">
+        <div className="border border-slate-200 dark:border-slate-800 rounded-2xl overflow-x-auto">
           <table className="min-w-full text-left text-sm whitespace-nowrap">
             <thead className="bg-slate-50 dark:bg-slate-800/50 border-b border-slate-200 dark:border-slate-800 text-slate-500 dark:text-slate-400 font-semibold">
               <tr>
@@ -72,3 +72,4 @@ export function UsageTab({ usageStats }: UsageTabProps) {
     </div>
   );
 }
+

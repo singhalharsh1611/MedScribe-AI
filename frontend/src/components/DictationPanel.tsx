@@ -38,12 +38,12 @@ export function DictationPanel({
 }: DictationPanelProps) {
   return (
     <>
-      <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl shadow-sm p-6">
+      <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800/60 rounded-3xl shadow-sm shadow-slate-200/50 dark:shadow-none p-6">
         <div className="flex items-center justify-between mb-6">
           <h2 className="text-lg font-semibold text-slate-900 dark:text-slate-100 flex items-center gap-2">
             <Mic className="w-5 h-5 text-blue-500" /> Dictation
           </h2>
-          <label className="flex items-center gap-2 cursor-pointer bg-blue-50 dark:bg-blue-900/20 px-3 py-1.5 rounded-lg border border-blue-100 dark:border-blue-900/50 hover:bg-blue-100 dark:hover:bg-blue-900/40 transition-colors">
+          <label className="flex items-center gap-2 cursor-pointer bg-blue-50 dark:bg-blue-900/20 px-3 py-1.5 rounded-xl border border-blue-100 dark:border-blue-900/50 hover:bg-blue-100 dark:hover:bg-blue-900/40 transition-colors">
             <input type="checkbox" checked={isLiveMode} onChange={(e) => setIsLiveMode(e.target.checked)} className="rounded text-blue-600 focus:ring-blue-500 border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800" />
             <span className="text-xs font-semibold text-blue-700 dark:text-blue-300 uppercase tracking-wider">Live Mode</span>
           </label>
@@ -55,7 +55,7 @@ export function DictationPanel({
             <select
               value={spokenLang}
               onChange={(e) => setSpokenLang(e.target.value)}
-              className="w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg p-2.5 text-sm text-slate-900 dark:text-slate-100 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 transition-all outline-none appearance-none"
+              className="w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl p-2.5 text-sm text-slate-900 dark:text-slate-100 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 transition-all outline-none appearance-none"
             >
               <option value="auto">Auto-Detect Language</option>
               {languages.map(l => (
@@ -69,12 +69,12 @@ export function DictationPanel({
               <>
                 <button
                   onClick={() => { setTranscription(''); startRecording(); }}
-                  className="flex-1 flex items-center justify-center gap-2 bg-slate-900 hover:bg-slate-800 dark:bg-white dark:hover:bg-slate-100 text-white dark:text-slate-900 px-6 py-3 rounded-xl font-medium transition-colors shadow-sm"
+                  className="flex-1 flex items-center justify-center gap-2 bg-slate-900 hover:bg-slate-800 dark:bg-white dark:hover:bg-slate-100 text-white dark:text-slate-900 px-6 py-3 rounded-2xl font-medium transition-colors shadow-sm"
                 >
                   <Mic className="w-4 h-4" /> Start Recording
                 </button>
                 {!isLiveMode && (
-                  <label className="flex-1 flex items-center justify-center gap-2 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 px-6 py-3 rounded-xl font-medium transition-colors shadow-sm cursor-pointer">
+                  <label className="flex-1 flex items-center justify-center gap-2 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 px-6 py-3 rounded-2xl font-medium transition-colors shadow-sm cursor-pointer">
                     <Upload className="w-4 h-4" /> Upload Audio
                     <input type="file" accept="audio/*" className="hidden" onChange={handleFileUpload} />
                   </label>
@@ -83,7 +83,7 @@ export function DictationPanel({
             ) : (
               <button
                 onClick={stopRecording}
-                className="flex-1 flex items-center justify-center gap-2 bg-red-500 hover:bg-red-600 text-white px-6 py-3 rounded-xl font-medium transition-colors shadow-sm animate-pulse"
+                className="flex-1 flex items-center justify-center gap-2 bg-red-500 hover:bg-red-600 text-white px-6 py-3 rounded-2xl font-medium transition-colors shadow-sm animate-pulse"
               >
                 <Square className="w-4 h-4" /> Stop
               </button>
@@ -92,18 +92,18 @@ export function DictationPanel({
 
           {audioUrl && !isLiveMode && (
             <div className="pt-4 border-t border-slate-100 dark:border-slate-800 space-y-4">
-              <audio src={audioUrl} controls className="w-full h-10 rounded-lg bg-slate-50 dark:bg-slate-800" />
+              <audio src={audioUrl} controls className="w-full h-10 rounded-xl bg-slate-50 dark:bg-slate-800" />
               <div className="flex gap-3">
                 <button
                   onClick={handleTranscribe}
                   disabled={isTranscribing}
-                  className="flex-1 bg-blue-50 dark:bg-blue-900/20 hover:bg-blue-100 dark:hover:bg-blue-900/40 text-blue-700 dark:text-blue-300 border border-blue-200 dark:border-blue-800/50 px-4 py-2.5 rounded-lg text-sm font-medium transition-colors disabled:opacity-50"
+                  className="flex-1 bg-blue-50 dark:bg-blue-900/20 hover:bg-blue-100 dark:hover:bg-blue-900/40 text-blue-700 dark:text-blue-300 border border-blue-200 dark:border-blue-800/50 px-4 py-2.5 rounded-xl text-sm font-medium transition-colors disabled:opacity-50"
                 >
                   {isTranscribing ? 'Processing...' : 'Transcribe'}
                 </button>
                 <button
                   onClick={clearAudio}
-                  className="px-4 py-2.5 rounded-lg text-sm font-medium text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
+                  className="px-4 py-2.5 rounded-xl text-sm font-medium text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
                 >
                   Discard
                 </button>
@@ -114,7 +114,7 @@ export function DictationPanel({
       </div>
 
       {(transcription || isTranscribing) && (
-        <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl shadow-sm flex flex-col h-full overflow-hidden mt-6">
+        <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800/60 rounded-3xl shadow-sm shadow-slate-200/50 dark:shadow-none flex flex-col overflow-hidden mt-6">
           <div className="bg-slate-50 dark:bg-slate-800/50 p-4 border-b border-slate-200 dark:border-slate-800 flex justify-between items-center">
             <h3 className="text-sm font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 flex items-center gap-2">
               <Languages className="w-4 h-4" /> Transcript (English)
@@ -126,7 +126,7 @@ export function DictationPanel({
             )}
           </div>
           <textarea
-            className="w-full flex-1 p-5 bg-transparent resize-none min-h-[200px] outline-none text-slate-700 dark:text-slate-300 text-base leading-relaxed placeholder-slate-400 dark:placeholder-slate-500"
+            className="w-full p-5 bg-transparent resize-y min-h-[300px] outline-none text-slate-700 dark:text-slate-300 text-base leading-relaxed placeholder-slate-400 dark:placeholder-slate-500"
             value={transcription}
             onChange={(e) => setTranscription(e.target.value)}
             placeholder={isTranscribing ? "Listening and streaming to AI..." : "Transcript will appear here. Feel free to edit it manually before generating."}
@@ -139,7 +139,7 @@ export function DictationPanel({
                 <button
                   onClick={handleDoctorGenerate}
                   disabled={isExtracting || isGenerating || !transcription.trim()}
-                  className="w-full bg-blue-600 hover:bg-blue-700 disabled:bg-blue-400 dark:disabled:bg-blue-800 text-white px-6 py-3.5 rounded-xl font-semibold shadow-sm transition-all flex items-center justify-center gap-2"
+                  className="w-full bg-slate-900 hover:bg-slate-800 dark:bg-white dark:hover:bg-slate-100 disabled:bg-slate-300 dark:disabled:bg-slate-700 text-white dark:text-slate-900 px-6 py-3.5 rounded-2xl font-semibold shadow-sm transition-all flex items-center justify-center gap-2"
                 >
                   {(isExtracting || isGenerating) ? (
                     <><div className="animate-spin h-4 w-4 border-2 border-white/30 border-t-white rounded-full"></div> Analyzing...</>
@@ -149,7 +149,7 @@ export function DictationPanel({
                 <button
                   onClick={handleExtractAndMap}
                   disabled={isExtracting || !transcription.trim()}
-                  className="w-full bg-slate-800 hover:bg-slate-900 dark:bg-slate-700 dark:hover:bg-slate-600 text-white px-6 py-3 rounded-xl font-medium transition-colors flex justify-center"
+                  className="w-full bg-slate-800 hover:bg-slate-900 dark:bg-slate-700 dark:hover:bg-slate-600 text-white px-6 py-3 rounded-2xl font-medium transition-colors flex justify-center"
                 >
                   {isExtracting ? 'Extracting...' : 'Extract & Map to Database'}
                 </button>
@@ -161,4 +161,8 @@ export function DictationPanel({
     </>
   );
 }
+
+
+
+
 

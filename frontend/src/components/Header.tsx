@@ -14,10 +14,10 @@ export function Header({ activeTab, setActiveTab, resetState }: HeaderProps) {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
         
         <div className="flex items-center gap-2">
-          <div className="bg-blue-600 p-1.5 rounded-lg">
-            <Activity className="w-5 h-5 text-white" />
+          <div className="bg-slate-900 dark:bg-white p-1.5 rounded-xl">
+            <Activity className="w-5 h-5 text-white dark:text-slate-900" />
           </div>
-          <span className="font-bold text-xl tracking-tight text-slate-900 dark:text-white">SleekCare AI</span>
+          <span className="font-bold text-xl tracking-tight text-slate-900 dark:text-white dark:text-slate-900">SleekCare AI</span>
         </div>
 
         <nav className="hidden md:flex items-center space-x-1">
@@ -48,3 +48,4 @@ export function Header({ activeTab, setActiveTab, resetState }: HeaderProps) {
     </header>
   );
 }
+
