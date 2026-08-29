@@ -58,7 +58,7 @@ export const savePrescription = async (patientName: string, diagnosis: string, h
 
 export const getPrescriptions = async () => {
   // Return without html_content for the list view to save bandwidth
-  const query = `SELECT id, timestamp, patient_name, diagnosis FROM prescriptions ORDER BY timestamp DESC`;
+  const query = `SELECT id, timestamp, patient_name, diagnosis, transcription_text, audio_url FROM prescriptions ORDER BY timestamp DESC`;
   const result = await pool.query(query);
   return result.rows;
 };

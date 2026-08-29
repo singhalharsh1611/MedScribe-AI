@@ -13,6 +13,7 @@ const geistMono = Geist_Mono({
 });
 
 import { ThemeProvider } from "@/components/theme-provider";
+import { Toaster } from "react-hot-toast";
 
 export const metadata: Metadata = {
   title: "SleekCare AI",
@@ -29,6 +30,7 @@ export default function RootLayout({
       <body className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}>
         <ThemeProvider attribute="class" defaultTheme="system" enableSystem>
           {children}
+          <Toaster position="bottom-right" />
         </ThemeProvider>
       </body>
     </html>

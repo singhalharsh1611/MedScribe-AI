@@ -6,6 +6,7 @@ import { Language } from '../../types';
 import { useAudioRecorder } from '../../hooks/use-audio-recorder';
 import { Mic, Square, Play, Copy, Upload, Trash2, Languages, Activity } from 'lucide-react';
 import axios from 'axios';
+import toast from 'react-hot-toast';
 import { ModeToggle } from '../components/mode-toggle';
 
 import { Header } from '../components/Header';
@@ -133,6 +134,37 @@ export default function TranslatorApp() {
     }
   };
 
+  
+  const handleSavePrescription = async () => {
+    try {
+      setIsSaving(true);
+      const loadingToast = toast.loading('Saving prescription and uploading audio...');
+      
+      let uploadedAudioUrl = null;
+      if (audioBlob) {
+          try {
+              const formData = new FormData();
+              formData.append('audio', audioBlob, 'recording.webm');
+              const res = await axios.post(`${process.env.NEXT_PUBLIC_API_URL}/transcription/upload`, formData);
+              uploadedAudioUrl = res.data.audioUrl;
+          } catch(e) {
+              console.error('Failed to upload audio to cloudinary:', e);
+              toast.error('Failed to upload audio, but saving prescription anyway');
+          }
+      }
+      
+      await savePrescription(iframeRef.current?.contentDocument?.documentElement.outerHTML || prescriptionHtml || '', patientName, diagnosis, transcription, uploadedAudioUrl);
+      fetchHistory();
+      toast.dismiss(loadingToast);
+      toast.success('Prescription saved successfully!');
+    } catch (err) {
+      console.error(err);
+      toast.error('Failed to save prescription');
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
   const fetchHistory = async () => {
     try {
       const data = await getPrescriptionHistory();
@@ -217,29 +249,7 @@ export default function TranslatorApp() {
     if (audioBlob) {
       const url = URL.createObjectURL(audioBlob);
       setAudioUrl(url);
-        const handleSavePrescription = async () => {
-    try {
-      setIsSaving(true);
-      let uploadedAudioUrl = null;
-      if (audioBlob) {
-          try {
-              const formData = new FormData();
-              formData.append('audio', audioBlob, 'recording.webm');
-              const res = await axios.post(`${process.env.NEXT_PUBLIC_API_URL}/transcription/upload`, formData);
-              uploadedAudioUrl = res.data.audioUrl;
-          } catch(e) {
-              console.error('Failed to upload audio to cloudinary:', e);
-          }
-      }
-      await savePrescription(iframeRef.current?.contentDocument?.documentElement.outerHTML || prescriptionHtml || '', patientName, diagnosis, transcription, uploadedAudioUrl);
-      fetchHistory();
-    } catch (err) {
-      console.error(err);
-    } finally {
-      setIsSaving(false);
-    }
-  };
-
+        
   return () => URL.revokeObjectURL(url);
     } else {
       setAudioUrl(null);
@@ -361,29 +371,7 @@ export default function TranslatorApp() {
     navigator.clipboard.writeText(text);
   };
 
-    const handleSavePrescription = async () => {
-    try {
-      setIsSaving(true);
-      let uploadedAudioUrl = null;
-      if (audioBlob) {
-          try {
-              const formData = new FormData();
-              formData.append('audio', audioBlob, 'recording.webm');
-              const res = await axios.post(`${process.env.NEXT_PUBLIC_API_URL}/transcription/upload`, formData);
-              uploadedAudioUrl = res.data.audioUrl;
-          } catch(e) {
-              console.error('Failed to upload audio to cloudinary:', e);
-          }
-      }
-      await savePrescription(iframeRef.current?.contentDocument?.documentElement.outerHTML || prescriptionHtml || '', patientName, diagnosis, transcription, uploadedAudioUrl);
-      fetchHistory();
-    } catch (err) {
-      console.error(err);
-    } finally {
-      setIsSaving(false);
-    }
-  };
-
+    
   return (
     <div className="min-h-screen bg-slate-50/50 dark:bg-[#0B1120] text-slate-900 dark:text-slate-100 transition-colors duration-300 flex flex-col font-sans">
       
