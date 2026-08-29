@@ -410,7 +410,7 @@ export default function TranslatorApp() {
           <div className="bg-white rounded-xl shadow-md p-6 flex flex-col items-center space-y-6">
           <div className="w-full flex justify-between items-center border-b pb-4">
             <h2 className="text-xl font-medium text-gray-800">
-              1. Input Audio <span className="text-sm text-indigo-500 ml-2">(Auto-translates to English via Sarvam)</span>
+              1. Input Audio <span className="text-sm text-indigo-500 ml-2">(Auto-translates to English)</span>
             </h2>
             <div className="flex items-center gap-4">
               <label className="flex items-center gap-2 cursor-pointer bg-blue-50 px-3 py-1.5 rounded-full border border-blue-200">

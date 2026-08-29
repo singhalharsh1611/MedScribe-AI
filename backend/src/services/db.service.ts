@@ -1,12 +1,19 @@
 import Database from 'better-sqlite3';
 import path from 'path';
+import fs from 'fs';
 
-// Create a new database file in the project root
-const dbPath = path.resolve(__dirname, '../../usage.db');
-const db = new Database(dbPath);
+// Ensure databases directory exists
+const dbDir = path.resolve(__dirname, '../../databases');
+if (!fs.existsSync(dbDir)) {
+  fs.mkdirSync(dbDir, { recursive: true });
+}
+
+// Create new database connections
+const usageDb = new Database(path.join(dbDir, 'usage.db'));
+const historyDb = new Database(path.join(dbDir, 'history.db'));
 
 // Initialize tables
-db.exec(`
+usageDb.exec(`
   CREATE TABLE IF NOT EXISTS usage (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     timestamp DATETIME DEFAULT CURRENT_TIMESTAMP,
@@ -23,7 +30,9 @@ db.exec(`
     text_length INTEGER,
     translation_time_ms REAL
   );
+`);
 
+historyDb.exec(`
   CREATE TABLE IF NOT EXISTS prescriptions (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     timestamp DATETIME DEFAULT CURRENT_TIMESTAMP,
@@ -34,10 +43,10 @@ db.exec(`
 `);
 
 export const logUsage = (durationSeconds: number, transcriptionText: string) => {
-  // Sarvam API pricing: ₹30.00 per hour
+  // Sarvam API pricing: ₹130.00 per hour
   const costInr = (durationSeconds / 3600) * 30.00;
   
-  const stmt = db.prepare(`
+  const stmt = usageDb.prepare(`
     INSERT INTO usage (duration_seconds, cost_inr, transcription_text, timestamp)
     VALUES (?, ?, ?, DATETIME('now', '+5 hours', '+30 minutes'))
   `);
@@ -47,7 +56,7 @@ export const logUsage = (durationSeconds: number, transcriptionText: string) => 
 };
 
 export const logTranslation = (sourceLanguage: string, targetLanguage: string, textLength: number, translationTimeMs: number) => {
-  const stmt = db.prepare(`
+  const stmt = usageDb.prepare(`
     INSERT INTO translation_logs (source_language, target_language, text_length, translation_time_ms, timestamp)
     VALUES (?, ?, ?, ?, DATETIME('now', '+5 hours', '+30 minutes'))
   `);
@@ -57,8 +66,8 @@ export const logTranslation = (sourceLanguage: string, targetLanguage: string, t
 };
 
 export const getUsageStats = () => {
-  const usageStmt = db.prepare(`SELECT * FROM usage ORDER BY timestamp DESC LIMIT 50`);
-  const translationStmt = db.prepare(`SELECT * FROM translation_logs ORDER BY timestamp DESC LIMIT 50`);
+  const usageStmt = usageDb.prepare(`SELECT * FROM usage ORDER BY timestamp DESC LIMIT 50`);
+  const translationStmt = usageDb.prepare(`SELECT * FROM translation_logs ORDER BY timestamp DESC LIMIT 50`);
   
   return {
     transcriptions: usageStmt.all(),
@@ -67,7 +76,7 @@ export const getUsageStats = () => {
 };
 
 export const savePrescription = (patientName: string, diagnosis: string, htmlContent: string) => {
-  const stmt = db.prepare(`
+  const stmt = historyDb.prepare(`
     INSERT INTO prescriptions (patient_name, diagnosis, html_content, timestamp)
     VALUES (?, ?, ?, DATETIME('now', '+5 hours', '+30 minutes'))
   `);
@@ -78,11 +87,11 @@ export const savePrescription = (patientName: string, diagnosis: string, htmlCon
 
 export const getPrescriptions = () => {
   // Return without html_content for the list view to save bandwidth
-  const stmt = db.prepare(`SELECT id, timestamp, patient_name, diagnosis FROM prescriptions ORDER BY timestamp DESC`);
+  const stmt = historyDb.prepare(`SELECT id, timestamp, patient_name, diagnosis FROM prescriptions ORDER BY timestamp DESC`);
   return stmt.all();
 };
 
 export const getPrescriptionById = (id: number) => {
-  const stmt = db.prepare(`SELECT * FROM prescriptions WHERE id = ?`);
+  const stmt = historyDb.prepare(`SELECT * FROM prescriptions WHERE id = ?`);
   return stmt.get(id);
 };

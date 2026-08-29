@@ -3,7 +3,7 @@ import path from 'path';
 import { doubleMetaphone } from 'double-metaphone';
 import cliProgress from 'cli-progress';
 
-const DB_PATH = path.join(__dirname, '..', 'assets', 'drugs.sqlite');
+const DB_PATH = path.join(__dirname, '..', 'databases', 'drugs.sqlite');
 const db = new Database(DB_PATH);
 
 console.log('Starting Database Migration for Lightning Fast Searches...');

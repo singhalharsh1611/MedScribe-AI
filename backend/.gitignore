@@ -3,3 +3,5 @@ dist/
 .env
 assets/*.sqlite
 assets/*.db
+
+databases/

@@ -4,7 +4,7 @@ import path from 'path';
 import { distance } from 'fastest-levenshtein';
 import { doubleMetaphone } from 'double-metaphone';
 
-const DB_PATH = path.join(__dirname, '..', '..', 'assets', 'drugs.sqlite');
+const DB_PATH = path.join(__dirname, '..', '..', 'databases', 'drugs.sqlite');
 
 interface Drug {
     brand_name: string;

@@ -6,7 +6,7 @@ import * as cliProgress from 'cli-progress';
 import fs from 'fs';
 
 // Constants
-const DB_PATH = path.join(__dirname, '..', 'assets', 'drugs.sqlite');
+const DB_PATH = path.join(__dirname, '..', 'databases', 'drugs.sqlite');
 const CONCURRENCY = 50; // Vastly increased concurrency for speed
 const DELAY_MS = 100; // Minimal delay
 
