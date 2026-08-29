@@ -10,7 +10,7 @@ interface HistoryTabProps {
 
 export function HistoryTab({ prescriptionHistory, viewingHistoryId, historyHtml, loadHistoryItem }: HistoryTabProps) {
   return (
-    <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800/60 rounded-3xl shadow-sm shadow-slate-200/50 dark:shadow-none overflow-hidden flex flex-col md:flex-row h-[800px]">
+    <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800/60 rounded-3xl shadow-sm shadow-slate-200/50 dark:shadow-none overflow-hidden flex flex-col md:flex-row h-[900px]">
       <div className="w-full md:w-1/3 border-r border-slate-200 dark:border-slate-800 flex flex-col bg-slate-50/50 dark:bg-slate-900/50">
         <div className="p-4 border-b border-slate-200 dark:border-slate-800">
           <h2 className="text-sm font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">Prescription Archive</h2>
@@ -42,7 +42,7 @@ export function HistoryTab({ prescriptionHistory, viewingHistoryId, historyHtml,
                 )}
                 
                 {p.transcription_text && (
-                  <div className="mt-2 text-xs text-slate-500 dark:text-slate-400 italic line-clamp-2 bg-slate-50 dark:bg-slate-900 p-2 rounded border border-slate-100 dark:border-slate-800">
+                  <div className="mt-2 text-xs text-slate-500 dark:text-slate-400 italic  bg-slate-50 dark:bg-slate-900 p-2 rounded border border-slate-100 dark:border-slate-800">
                     "{p.transcription_text}"
                   </div>
                 )}
