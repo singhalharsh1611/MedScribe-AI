@@ -262,12 +262,11 @@ ${JSON.stringify(mappedDrugs, null, 2)}
 INSTRUCTIONS:
 1. Extract all clinical details (chief complaint, vitals, history, etc.) from the transcript. Extract Patient Name, Age, and Gender if mentioned. If something is not mentioned, use "N/A" or leave empty.
 2. Identify the medications prescribed in the transcript.
-3. For each medication, decisively select the **single BEST matching brand_name** from the provided "MAPPED MEDICATIONS" list. 
-   - CRITICAL: You MUST select the 'brand_name' from either the 'auto_picked', 'top_phonetic', or 'top_fuzzy' arrays. 
-   - NEVER output the 'original_extracted_word'.
-   - If 'auto_picked' exists for a drug, YOU MUST strictly use its 'brand_name'.
-   - If 'auto_picked' is null, analyze the transcript's context (disease/symptoms) and compare it against the "salt" (active ingredient) of the phonetic and fuzzy matches to pick the most logical 'brand_name'.
-   - Do NOT invent a medication name. It MUST be an exact 'brand_name' string from the provided candidates.
+3. For each medication, comprehensively evaluate ALL 10 matches (5 from 'top_phonetic' and 5 from 'top_fuzzy').
+   - STEP 1: If 'auto_picked' exists, you MUST strictly use its 'brand_name' and skip the other steps.
+   - STEP 2: Evaluate the phonetic matches and fuzzy matches to find the one that most closely resembles the spoken medication name.
+   - STEP 3: Give a higher priority and weightage to the 'top_phonetic' matches, as they are phonetically identical to what the doctor spoke.
+   - CRITICAL: You MUST pick an exact 'brand_name' from the provided arrays. NEVER output the 'original_extracted_word'. Do NOT invent medication names.
 4. Extract the following for each medication:
    - **dose**: The amount to take (e.g., "1 Tablet", "10 ml", "50 mg").
    - **route**: Infer this from the selected brand_name. If the name contains "Tablet", "Capsule", or "Suspension", set route to "Oral". If it contains "Injection", set to "Subcutaneous / IM / IV". If it contains "Cream" or "Ointment", set to "Topical".
@@ -328,7 +327,7 @@ REQUIRED JSON FORMAT:
             model: model,
             messages: [{ role: 'user', content: prompt }],
             max_tokens: 2000,
-            temperature: 0.0
+            temperature: 0.15
         }, {
             headers: {
                 'Authorization': `Bearer ${apiKey}`,
