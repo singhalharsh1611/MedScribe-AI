@@ -626,33 +626,33 @@ export default function TranslatorApp() {
                     )}
                   </button>
                 </div>
+              </div>
+            )}
 
-                {prescriptionHtml && (
-                  <div className="mt-8 border-t pt-8">
-                    <h3 className="font-semibold text-gray-700 mb-4 flex items-center justify-between">
-                      Final Digital Prescription
-                      <button 
-                        onClick={() => {
-                          const printWindow = window.open('', '', 'width=900,height=700');
-                          printWindow?.document.write(prescriptionHtml);
-                          printWindow?.document.close();
-                          printWindow?.focus();
-                          setTimeout(() => printWindow?.print(), 250);
-                        }}
-                        className="bg-gray-800 text-white text-sm px-4 py-2 rounded shadow hover:bg-gray-700 transition"
-                      >
-                        Print / Save PDF
-                      </button>
-                    </h3>
-                    <div className="border border-gray-300 rounded-lg overflow-hidden bg-white shadow-inner" style={{ height: '800px' }}>
-                      <iframe 
-                        srcDoc={prescriptionHtml} 
-                        className="w-full h-full border-none"
-                        title="Prescription Preview"
-                      />
-                    </div>
-                  </div>
-                )}
+            {prescriptionHtml && (
+              <div className="mt-8 border-t pt-8">
+                <h3 className="font-semibold text-gray-700 mb-4 flex items-center justify-between">
+                  Final Digital Prescription
+                  <button 
+                    onClick={() => {
+                      const printWindow = window.open('', '', 'width=900,height=700');
+                      printWindow?.document.write(prescriptionHtml);
+                      printWindow?.document.close();
+                      printWindow?.focus();
+                      setTimeout(() => printWindow?.print(), 250);
+                    }}
+                    className="bg-gray-800 text-white text-sm px-4 py-2 rounded shadow hover:bg-gray-700 transition"
+                  >
+                    Print / Save PDF
+                  </button>
+                </h3>
+                <div className="border border-gray-300 rounded-lg overflow-hidden bg-white shadow-inner" style={{ height: '800px' }}>
+                  <iframe 
+                    srcDoc={prescriptionHtml} 
+                    className="w-full h-full border-none"
+                    title="Prescription Preview"
+                  />
+                </div>
               </div>
             )}
           </div>
