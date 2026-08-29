@@ -1,6 +1,6 @@
 import axios from 'axios';
 import path from 'path';
-import { compareTwoStrings } from 'string-similarity';
+import { distance } from 'fastest-levenshtein';
 import { doubleMetaphone } from 'double-metaphone';
 import pool from './db.service';
 
@@ -165,8 +165,14 @@ export const mapDrugsToDatabase = (extractedDrugs: string[]) => {
                 const namesArr = cache.namesByLength.get(l)!;
                 for (let i = 0; i < arr.length; i++) {
                     const target = namesArr[i];
-                    // Use Sørensen-Dice coefficient for highly granular continuous float scores
-                    const score = compareTwoStrings(extLower, target) * 100;
+                    const dist = distance(extLower, target);
+                    
+                    const maxLength = Math.max(extLen, target.length);
+                    let score = Math.max(0, 100 - (dist / maxLength) * 100);
+                    
+                    // Tie breakers for exact prefixes and length penalties
+                    if (target.startsWith(extLower)) score += 5;
+                    score -= Math.abs(target.length - extLen) * 0.01;
                     
                     if (score > 40) {
                         fuzzyResults.push({ ...arr[i], score, match_type: 'Fuzzy' });
@@ -175,7 +181,8 @@ export const mapDrugsToDatabase = (extractedDrugs: string[]) => {
             }
         }
         
-        fuzzyResults.sort((a, b) => b.score - a.score);
+        // Sort with a stable secondary sort alphabetically if scores match exactly
+        fuzzyResults.sort((a, b) => b.score - a.score || a.brand_name.localeCompare(b.brand_name));
         const topFuzzy = fuzzyResults.slice(0, 5);
 
         let phoneticResults: any[] = [];
@@ -183,10 +190,17 @@ export const mapDrugsToDatabase = (extractedDrugs: string[]) => {
             const phoneticBucket = cache.byPhonetic.get(extPrimary)!;
             phoneticResults = phoneticBucket
                 .map(d => {
-                    const score = compareTwoStrings(extLower, d.brand_name_normalized) * 100;
+                    const dist = distance(extLower, d.brand_name_normalized);
+                    const maxLength = Math.max(extLen, d.brand_name_normalized.length);
+                    let score = Math.max(0, 100 - (dist / maxLength) * 100);
+                    
+                    // Tie breakers
+                    if (d.brand_name_normalized.startsWith(extLower)) score += 5;
+                    score -= Math.abs(d.brand_name_normalized.length - extLen) * 0.01;
+                    
                     return { ...d, score, match_type: 'Phonetic' };
                 })
-                .sort((a, b) => b.score - a.score)
+                .sort((a, b) => b.score - a.score || a.brand_name.localeCompare(b.brand_name))
                 .slice(0, 5);
         }
 
