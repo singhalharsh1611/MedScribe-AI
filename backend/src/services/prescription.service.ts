@@ -111,7 +111,12 @@ export const extractDrugs = async (transcript: string): Promise<string[]> => {
         throw new Error('DR7_API_KEY is not set in environment variables');
     }
 
-    const systemPrompt = `You are a Named Entity Recognition (NER) assistant. Extract all words or phrases that sound like medication names from the text. Ignore spelling mistakes. Include the numerical dosage if it is spoken next to the medication name (e.g., 'rebeca 20mg'). Do NOT include frequency instructions like 'twice a day'. Respond ONLY with a valid JSON array of strings. Example: ["rebeca 20mg", "calvon"]`;
+    const systemPrompt = `You are a strict Named Entity Recognition (NER) assistant for medical transcripts.
+Extract all medication names and their spoken numerical dosages directly from the text (e.g., 'Rebeca 20mg', 'Calpol 500').
+CRITICAL RULES:
+1. You MUST extract the exact substring as it appears in the text. Do NOT correct spelling. Do NOT invent or alter medication names.
+2. Do NOT include frequency instructions (e.g., 'twice a day', 'OD').
+3. Respond ONLY with a valid JSON array of strings. Example: ["rebeca 20mg", "calvon"]`;
 
     const response = await axios.post(apiUrl, {
         model,
@@ -256,10 +261,11 @@ ${JSON.stringify(mappedDrugs, null, 2)}
 INSTRUCTIONS:
 1. Extract all clinical details (chief complaint, vitals, history, etc.) from the transcript. Extract Patient Name, Age, and Gender if mentioned. If something is not mentioned, use "N/A" or leave empty.
 2. Identify the medications prescribed in the transcript.
-3. For each medication, select the **single BEST matching brand_name** from the provided "MAPPED MEDICATIONS" list. 
-   - If an "auto_picked" field exists for a medication, YOU MUST strictly use the "auto_picked" brand name. Do NOT look at top_phonetic or top_fuzzy.
-   - If "auto_picked" is null, evaluate the 5 top_phonetic and 5 top_fuzzy matches provided. Pick the best one.
-   - If NONE of the matches are clinically appropriate for the transcript context, or you cannot decide, you MUST output "UNVERIFIED" for that medication's brand_name so the doctor can manually intervene.
+3. For each medication, decisively select the **single BEST matching brand_name** from the provided "MAPPED MEDICATIONS" list. 
+   - Analyze the transcript's context (disease/symptoms) and compare it against the "salt" (active ingredient) of the phonetic and fuzzy matches to resolve ambiguous names.
+   - You MUST pick the most clinically logical medication from the provided candidates.
+   - Do NOT output "UNVERIFIED". You are an expert AI—make the most educated choice.
+   - Do NOT invent a medication name. It MUST be an exact string from the provided lists.
 4. Extract the following for each medication:
    - **dose**: The amount to take (e.g., "1 Tablet", "10 ml", "50 mg").
    - **route**: Infer this from the selected brand_name. If the name contains "Tablet", "Capsule", or "Suspension", set route to "Oral". If it contains "Injection", set to "Subcutaneous / IM / IV". If it contains "Cream" or "Ointment", set to "Topical".
@@ -295,7 +301,7 @@ REQUIRED JSON FORMAT:
   "emergency_precautions": "",
   "medications": [
     {
-      "medicine": "Exact brand_name from mapped list or UNVERIFIED",
+      "medicine": "Exact brand_name from mapped list",
       "dose": "",
       "route": "",
       "frequency": "",
