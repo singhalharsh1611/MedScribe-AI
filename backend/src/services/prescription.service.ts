@@ -153,15 +153,12 @@ export const mapDrugsToDatabase = (extractedDrugs: string[]) => {
     const mappedResults = [];
 
     for (const extractedWord of extractedDrugs) {
-        // Strip common words from the extracted word so it matches the normalized DB perfectly
         const extLower = normalizeDrugName(extractedWord);
         const [extPrimary] = doubleMetaphone(extLower.split(' ')[0] || extLower);
 
-        // 1. O(1) Length Filtering & In-Place Fuzzy Search (SPEEDUP: 10,000x faster!)
         const extLen = extLower.length;
         const fuzzyResults: any[] = [];
         
-        // Loop over buckets (±6 characters) to find fuzzy matches without allocating temporary arrays
         for (let l = Math.max(1, extLen - 6); l <= extLen + 6; l++) {
             if (cache.byLength.has(l)) {
                 const arr = cache.byLength.get(l)!;
@@ -171,7 +168,11 @@ export const mapDrugsToDatabase = (extractedDrugs: string[]) => {
                     const dist = distance(extLower, target);
                     
                     const maxLength = Math.max(extLen, target.length);
-                    const score = Math.max(0, 100 - (dist / maxLength) * 100);
+                    let score = Math.max(0, 100 - (dist / maxLength) * 100);
+                    
+                    // Tie breakers for exact prefixes and length penalties
+                    if (target.startsWith(extLower)) score += 5;
+                    score -= Math.abs(target.length - extLen) * 0.01;
                     
                     if (score > 40) {
                         fuzzyResults.push({ ...arr[i], score, match_type: 'Fuzzy' });
@@ -180,10 +181,10 @@ export const mapDrugsToDatabase = (extractedDrugs: string[]) => {
             }
         }
         
-        fuzzyResults.sort((a, b) => b.score - a.score);
+        // Sort with a stable secondary sort alphabetically if scores match exactly
+        fuzzyResults.sort((a, b) => b.score - a.score || a.brand_name.localeCompare(b.brand_name));
         const topFuzzy = fuzzyResults.slice(0, 5);
 
-        // 2. O(1) Phonetic Search (Instant lookup from Hash Map!)
         let phoneticResults: any[] = [];
         if (extPrimary && cache.byPhonetic.has(extPrimary)) {
             const phoneticBucket = cache.byPhonetic.get(extPrimary)!;
@@ -191,24 +192,41 @@ export const mapDrugsToDatabase = (extractedDrugs: string[]) => {
                 .map(d => {
                     const dist = distance(extLower, d.brand_name_normalized);
                     const maxLength = Math.max(extLen, d.brand_name_normalized.length);
-                    const score = Math.max(0, 100 - (dist / maxLength) * 100);
+                    let score = Math.max(0, 100 - (dist / maxLength) * 100);
+                    
+                    // Tie breakers
+                    if (d.brand_name_normalized.startsWith(extLower)) score += 5;
+                    score -= Math.abs(d.brand_name_normalized.length - extLen) * 0.01;
+                    
                     return { ...d, score, match_type: 'Phonetic' };
                 })
-                .sort((a, b) => b.score - a.score)
+                .sort((a, b) => b.score - a.score || a.brand_name.localeCompare(b.brand_name))
                 .slice(0, 5);
         }
 
-        // 3. Return both lists
+        // Logic: Auto-pick if top fuzzy and top phonetic are identical
+        let autoPicked = null;
+        if (topFuzzy.length > 0 && phoneticResults.length > 0) {
+            if (topFuzzy[0].brand_name === phoneticResults[0].brand_name) {
+                autoPicked = topFuzzy[0];
+            }
+        }
+
         mappedResults.push({
             original_extracted_word: extractedWord,
             phonetic_code: extPrimary,
-            top_phonetic: phoneticResults.map(r => ({
+            auto_picked: autoPicked ? {
+                brand_name: autoPicked.brand_name,
+                salt: autoPicked.salt,
+                score: autoPicked.score
+            } : null,
+            top_phonetic: phoneticResults.slice(0, 2).map(r => ({
                 brand_name: r.brand_name,
                 salt: r.salt,
                 match_type: r.match_type,
                 score: r.score
             })),
-            top_fuzzy: topFuzzy.map(r => ({
+            top_fuzzy: topFuzzy.slice(0, 2).map(r => ({
                 brand_name: r.brand_name,
                 salt: r.salt,
                 match_type: r.match_type,
@@ -238,50 +256,39 @@ ${JSON.stringify(mappedDrugs, null, 2)}
 INSTRUCTIONS:
 1. Extract all clinical details (chief complaint, vitals, history, etc.) from the transcript. Extract Patient Name, Age, and Gender if mentioned. If something is not mentioned, use "N/A" or leave empty.
 2. Identify the medications prescribed in the transcript.
-3. For each medication, select the **single BEST matching brand_name** from the provided "MAPPED MEDICATIONS" list. You MUST strictly use the exact string from the provided candidates.
+3. For each medication, select the **single BEST matching brand_name** from the provided "MAPPED MEDICATIONS" list. 
+   - If an "auto_picked" field exists for a medication, YOU MUST strictly use the "auto_picked" brand name. Do NOT look at top_phonetic or top_fuzzy.
+   - If "auto_picked" is null, evaluate the 2 top_phonetic and 2 top_fuzzy matches provided. Pick the best one.
+   - If NONE of the matches are clinically appropriate for the transcript context, or you cannot decide, you MUST output "UNVERIFIED" for that medication's brand_name so the doctor can manually intervene.
 4. Extract the following for each medication:
    - **dose**: The amount to take (e.g., "1 Tablet", "10 ml", "50 mg").
    - **route**: Infer this from the selected brand_name. If the name contains "Tablet", "Capsule", or "Suspension", set route to "Oral". If it contains "Injection", set to "Subcutaneous / IM / IV". If it contains "Cream" or "Ointment", set to "Topical".
    - **frequency**: Normalize medical abbreviations (e.g., "OD" -> "Once daily (OD)", "BD" -> "Twice daily (BD)", "TDS" -> "Three times a day (TDS)", "HS" -> "At bedtime (HS)", "QID" -> "Four times a day (QID)").
-   - **duration**: How long to take the medication (e.g., "5 days", "1 month").
-   - **instructions**: ONLY write specific situational instructions (e.g., "After meals", "Before meals", "Take with water", "In the morning"). Do NOT write dosage like "1 tablet" here.
-5. Return the exact JSON structure below, and NOTHING else (do not include markdown ticks).
+   - **duration**: How many days/weeks to take it.
+   - **instructions**: e.g., "After meals", "Before meals".
 
-REQUIRED JSON FORMAT:
+OUTPUT FORMAT:
+Respond ONLY with a valid JSON object matching this schema exactly. Do NOT wrap in markdown ```json blocks.
 {
-  "patient_name": "",
-  "patient_age": "",
-  "patient_gender": "",
-  "chief_complaint": "",
-  "hpi": "",
-  "allergies": "",
-  "past_history": "",
-  "vital_bp": "",
-  "vital_hr": "",
-  "vital_rr": "",
-  "vital_temp": "",
-  "vital_spo2": "",
-  "vital_height": "",
-  "vital_weight": "",
-  "vital_bmi": "",
-  "physical_examination": "",
-  "tests_ordered": "",
-  "key_results": "",
-  "differential_diagnosis": "",
-  "diet_lifestyle": "",
-  "activity": "",
-  "follow_up": "",
-  "emergency_precautions": "",
-  "medications": [
+  "patientName": "string",
+  "age": "string",
+  "gender": "string",
+  "vitals": ["string"],
+  "chiefComplaint": ["string"],
+  "history": ["string"],
+  "prescription": [
     {
-      "medicine": "Exact brand_name from mapped list",
-      "dose": "",
-      "route": "",
-      "frequency": "",
-      "duration": "",
-      "instructions": ""
+      "type": "medicine",
+      "brand_name": "string",
+      "dose": "string",
+      "route": "string",
+      "frequency": "string",
+      "duration": "string",
+      "instructions": "string"
     }
-  ]
+  ],
+  "advice": ["string"],
+  "followUp": "string"
 }`;
 
     // 2. Call MedGemma
@@ -299,7 +306,7 @@ REQUIRED JSON FORMAT:
             model: model,
             messages: [{ role: 'user', content: prompt }],
             max_tokens: 2000,
-            temperature: 0.2
+            temperature: 0.0
         }, {
             headers: {
                 'Authorization': `Bearer ${apiKey}`,
