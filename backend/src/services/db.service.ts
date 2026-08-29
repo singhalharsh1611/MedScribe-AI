@@ -20,8 +20,7 @@ export const logUsage = async (durationSeconds: number, transcriptionText: strin
   const costInr = (durationSeconds / 3600) * 130.00;
   
   const query = `
-    INSERT INTO usage (duration_seconds, cost_inr, transcription_text)
-    VALUES ($1, $2, $3) RETURNING id
+    INSERT INTO usage (duration_seconds, cost_inr, transcription_text, timestamp) VALUES ($1, $2, $3, CURRENT_TIMESTAMP AT TIME ZONE 'UTC' AT TIME ZONE 'Asia/Kolkata') RETURNING id
   `;
   
   const result = await pool.query(query, [durationSeconds, costInr, transcriptionText]);
@@ -30,8 +29,7 @@ export const logUsage = async (durationSeconds: number, transcriptionText: strin
 
 export const logTranslation = async (sourceLanguage: string, targetLanguage: string, textLength: number, translationTimeMs: number) => {
   const query = `
-    INSERT INTO translation_logs (source_language, target_language, text_length, translation_time_ms)
-    VALUES ($1, $2, $3, $4) RETURNING id
+    INSERT INTO translation_logs (source_language, target_language, text_length, translation_time_ms, timestamp) VALUES ($1, $2, $3, $4, CURRENT_TIMESTAMP AT TIME ZONE 'UTC' AT TIME ZONE 'Asia/Kolkata') RETURNING id
   `;
   
   const result = await pool.query(query, [sourceLanguage, targetLanguage, textLength, translationTimeMs]);
@@ -39,8 +37,8 @@ export const logTranslation = async (sourceLanguage: string, targetLanguage: str
 };
 
 export const getUsageStats = async () => {
-  const usageResult = await pool.query(`SELECT id, duration_seconds, cost_inr, transcription_text, (timestamp AT TIME ZONE 'UTC') as timestamp FROM usage ORDER BY timestamp DESC LIMIT 50`);
-  const translationResult = await pool.query(`SELECT id, source_language, target_language, text_length, translation_time_ms, (timestamp AT TIME ZONE 'UTC') as timestamp FROM translation_logs ORDER BY timestamp DESC LIMIT 50`);
+  const usageResult = await pool.query(`SELECT id, duration_seconds, cost_inr, transcription_text, timestamp FROM usage ORDER BY timestamp DESC LIMIT 50`);
+  const translationResult = await pool.query(`SELECT id, source_language, target_language, text_length, translation_time_ms, timestamp FROM translation_logs ORDER BY timestamp DESC LIMIT 50`);
   
   return {
     transcriptions: usageResult.rows,
@@ -50,8 +48,7 @@ export const getUsageStats = async () => {
 
 export const savePrescription = async (patientName: string, diagnosis: string, htmlContent: string, transcriptionText: string = '') => {
   const query = `
-    INSERT INTO prescriptions (patient_name, diagnosis, html_content, transcription_text)
-    VALUES ($1, $2, $3) RETURNING id
+    INSERT INTO prescriptions (patient_name, diagnosis, html_content, transcription_text, timestamp) VALUES ($1, $2, $3, $4, CURRENT_TIMESTAMP AT TIME ZONE 'UTC' AT TIME ZONE 'Asia/Kolkata') RETURNING id
   `;
   
   const result = await pool.query(query, [patientName || 'Unknown Patient', diagnosis || 'Unknown Diagnosis', htmlContent, transcriptionText]);
@@ -60,18 +57,19 @@ export const savePrescription = async (patientName: string, diagnosis: string, h
 
 export const getPrescriptions = async () => {
   // Return without html_content for the list view to save bandwidth
-  const query = `SELECT id, (timestamp AT TIME ZONE 'UTC') as timestamp, patient_name, diagnosis FROM prescriptions ORDER BY timestamp DESC`;
+  const query = `SELECT id, timestamp, patient_name, diagnosis FROM prescriptions ORDER BY timestamp DESC`;
   const result = await pool.query(query);
   return result.rows;
 };
 
 export const getPrescriptionById = async (id: number) => {
-  const query = `SELECT id, patient_name, diagnosis, html_content, transcription_text, (timestamp AT TIME ZONE 'UTC') as timestamp FROM prescriptions WHERE id = $1`;
+  const query = `SELECT id, patient_name, diagnosis, html_content, transcription_text, timestamp FROM prescriptions WHERE id = $1`;
   const result = await pool.query(query, [id]);
   return result.rows[0];
 };
 
 export default pool;
+
 
 
 
