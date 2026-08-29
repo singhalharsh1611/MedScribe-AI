@@ -47,7 +47,7 @@ export const handleTranscription = async (req: Request, res: Response, next: Nex
     const result = await transcribeAudio(file.path, language, mode, onProgress);
     console.log(`[Transcription] Success for language: ${language}, mode: ${mode}`);
     
-    const usage = logUsage(durationSeconds, `[${mode.toUpperCase()}] ` + result.text);
+    const usage = await logUsage(durationSeconds, `[${mode.toUpperCase()}] ` + result.text);
     console.log(`[Usage] Logged usage: ID ${usage.id}, Duration: ${durationSeconds.toFixed(2)}s, Cost: ₹${usage.costInr.toFixed(4)}`);
 
     res.write(`data: ${JSON.stringify({

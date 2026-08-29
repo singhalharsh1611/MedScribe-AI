@@ -101,8 +101,9 @@ export const setupWebSocketServer = (server: http.Server) => {
        
        if (durationSeconds > 0) {
            const finalFullText = (finalizedText + ' ' + currentPartialText).trim();
-           const log = logUsage(durationSeconds, finalFullText);
-           console.log(`[WS] Logged Live Streaming usage: ₹${log.costInr.toFixed(4)}`);
+           logUsage(durationSeconds, finalFullText).then(log => {
+               console.log(`[WS] Logged Live Streaming usage: ₹${log.costInr.toFixed(4)}`);
+           }).catch(console.error);
        }
     });
   });

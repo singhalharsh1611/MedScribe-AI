@@ -3,9 +3,9 @@ import { getUsageStats } from '../services/db.service';
 
 const router = Router();
 
-router.get('/', (req: Request, res: Response) => {
+router.get('/', async (req: Request, res: Response) => {
   try {
-    const stats = getUsageStats();
+    const stats = await getUsageStats();
     res.json(stats);
   } catch (error: any) {
     res.status(500).json({ message: error.message || 'Failed to fetch usage stats' });

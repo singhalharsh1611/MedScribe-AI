@@ -1,12 +1,12 @@
 import axios from 'axios';
 import * as cheerio from 'cheerio';
-import Database from 'better-sqlite3';
+import { Pool } from 'pg';
 import path from 'path';
 import * as cliProgress from 'cli-progress';
 import fs from 'fs';
+import 'dotenv/config';
 
 // Constants
-const DB_PATH = path.join(__dirname, '..', 'databases', 'drugs.sqlite');
 const CONCURRENCY = 50; // Vastly increased concurrency for speed
 const DELAY_MS = 100; // Minimal delay
 
@@ -16,31 +16,7 @@ const HEADERS = {
     'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8'
 };
 
-// Ensure assets directory exists
-if (!fs.existsSync(path.dirname(DB_PATH))) {
-    fs.mkdirSync(path.dirname(DB_PATH), { recursive: true });
-}
-
 // Initialize Database
-const db = new Database(DB_PATH);
-db.exec(`
-    CREATE TABLE IF NOT EXISTS drugs (
-        url TEXT PRIMARY KEY,
-        brand_name TEXT,
-        salt TEXT,
-        status TEXT DEFAULT 'PENDING' -- PENDING, DONE, ERROR, 404
-    );
-`);
-
-const insertDrugStmt = db.prepare(`
-    INSERT OR IGNORE INTO drugs (url, brand_name, status) VALUES (?, ?, 'PENDING')
-`);
-
-const updateDrugStmt = db.prepare(`
-    UPDATE drugs SET salt = ?, status = ? WHERE url = ?
-`);
-
-const getPendingStmt = db.prepare(`
     SELECT url, brand_name FROM drugs WHERE status = 'PENDING' LIMIT ?
 `);
 

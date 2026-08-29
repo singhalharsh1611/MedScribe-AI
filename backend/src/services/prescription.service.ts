@@ -1,10 +1,8 @@
 import axios from 'axios';
-import Database from 'better-sqlite3';
 import path from 'path';
 import { distance } from 'fastest-levenshtein';
 import { doubleMetaphone } from 'double-metaphone';
-
-const DB_PATH = path.join(__dirname, '..', '..', 'databases', 'drugs.sqlite');
+import pool from './db.service';
 
 interface Drug {
     brand_name: string;
@@ -30,47 +28,29 @@ function normalizeDrugName(name: string) {
         .trim();
 }
 
-export function initPrescriptionService() {
+export async function initPrescriptionService() {
     if (cachedDrugs) return cachedDrugs.list; // For backwards compatibility
     try {
-        console.log('\n[Prescription Service] Initializing Database & Phonetics Cache...');
-        const db = new Database(DB_PATH, { fileMustExist: true });
+        console.log('\n[Prescription Service] Initializing Database & Phonetics Cache from Postgres...');
         
-        // 1. Self-healing: Ensure phonetic_code column exists
-        try {
-            db.exec(`ALTER TABLE drugs ADD COLUMN phonetic_code TEXT`);
-            console.log('[Prescription Service] ⚠️ Added missing phonetic_code column to database.');
-        } catch (e: any) {
-            // Ignore error if column already exists
-        }
-
-        // 2. Self-healing: Compute missing phonetic codes
-        const missingRows = db.prepare('SELECT url, brand_name FROM drugs WHERE phonetic_code IS NULL').all() as any[];
-        if (missingRows.length > 0) {
-            console.log(`[Prescription Service] ⚠️ Found ${missingRows.length} drugs missing phonetic codes! Computing now...`);
-            const updateStmt = db.prepare('UPDATE drugs SET phonetic_code = ? WHERE url = ?');
+        // Ensure phonetic codes exist (Optional self-healing)
+        const missingRows = await pool.query('SELECT id, brand_name FROM drugs WHERE phonetic_code IS NULL');
+        if (missingRows.rows.length > 0) {
+            console.log(`[Prescription Service] Found ${missingRows.rows.length} drugs missing phonetic codes! Computing now...`);
             
-            const updateMany = db.transaction((drugs: any[]) => {
-                for (const drug of drugs) {
-                    const [primary] = doubleMetaphone(drug.brand_name.split(' ')[0] || drug.brand_name);
-                    updateStmt.run(primary, drug.url);
-                }
-            });
-
-            // Update in chunks
-            const chunkSize = 5000;
-            for (let i = 0; i < missingRows.length; i += chunkSize) {
-                updateMany(missingRows.slice(i, i + chunkSize));
+            for (const row of missingRows.rows) {
+                const [primary] = doubleMetaphone(row.brand_name.split(' ')[0] || row.brand_name);
+                await pool.query('UPDATE drugs SET phonetic_code = $1 WHERE id = $2', [primary, row.id]);
             }
-            console.log('[Prescription Service] ✅ Missing phonetic codes successfully generated and saved!');
+            console.log('[Prescription Service] Missing phonetic codes successfully generated and saved!');
         } else {
-            console.log('[Prescription Service] ✅ All phonetic codes are up to date in the database.');
+            console.log('[Prescription Service] All phonetic codes are up to date in the database.');
         }
 
         console.log('[Prescription Service] Loading all drugs into memory for Lightning Fast search...');
         
-        const rows = db.prepare("SELECT brand_name, salt, phonetic_code FROM drugs").all() as any[];
-        db.close();
+        const result = await pool.query("SELECT brand_name, salt, phonetic_code FROM drugs");
+        const rows = result.rows;
 
         const list = rows.map(row => ({
             brand_name: row.brand_name,

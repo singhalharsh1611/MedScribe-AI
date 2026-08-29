@@ -17,7 +17,7 @@ export const handleTranslation = async (req: Request, res: Response, next: NextF
     const endTime = Date.now();
     const translationTimeMs = endTime - startTime;
 
-    logTranslation(sourceLanguage, targetLanguage, text.length, translationTimeMs);
+    await logTranslation(sourceLanguage, targetLanguage, text.length, translationTimeMs);
     console.log(`[Translation] Success in ${translationTimeMs}ms`);
 
     res.json({

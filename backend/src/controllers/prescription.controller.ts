@@ -46,12 +46,12 @@ export const handleGeneratePrescription = async (req: Request, res: Response) =>
     }
 };
 
-export const handleSavePrescription = (req: Request, res: Response) => {
+export const handleSavePrescription = async (req: Request, res: Response) => {
     try {
         const { html, patientName, diagnosis } = req.body;
         if (!html) return res.status(400).json({ error: 'HTML content is required' });
 
-        const id = savePrescription(patientName, diagnosis, html);
+        const id = await savePrescription(patientName, diagnosis, html);
         res.json({ success: true, id });
     } catch (error: any) {
         console.error(error);
@@ -59,24 +59,27 @@ export const handleSavePrescription = (req: Request, res: Response) => {
     }
 };
 
-export const handleGetHistory = (req: Request, res: Response) => {
+export const handleGetHistory = async (req: Request, res: Response) => {
     try {
-        const history = getPrescriptions();
+        const history = await getPrescriptions();
         res.json({ history });
     } catch (error: any) {
         console.error(error);
-        res.status(500).json({ error: error.message || 'Failed to get history' });
+        res.status(500).json({ error: error.message || 'Failed to fetch prescription history' });
     }
 };
 
-export const handleGetHistoryById = (req: Request, res: Response) => {
+export const handleGetHistoryById = async (req: Request, res: Response) => {
     try {
         const id = parseInt(req.params.id);
-        const record = getPrescriptionById(id) as any;
-        if (!record) return res.status(404).json({ error: 'Not found' });
-        res.send(record.html_content);
+        if (isNaN(id)) return res.status(400).json({ error: 'Invalid ID' });
+
+        const prescription = await getPrescriptionById(id);
+        if (!prescription) return res.status(404).json({ error: 'Prescription not found' });
+        
+        res.send(prescription.html_content);
     } catch (error: any) {
         console.error(error);
-        res.status(500).json({ error: error.message || 'Failed to get prescription' });
+        res.status(500).json({ error: error.message || 'Failed to fetch prescription' });
     }
 };

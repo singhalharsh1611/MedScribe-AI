@@ -38,8 +38,8 @@ const server = http.createServer(app);
 setupWebSocketServer(server);
 
 // Initialize the Prescription Pipeline
-initPrescriptionService();
-
-server.listen(port, () => {
-  console.log(`Express API and WebSocket is running on http://localhost:${port}`);
-});
+initPrescriptionService().then(() => {
+  server.listen(port, () => {
+    console.log(`Express API and WebSocket is running on http://localhost:${port}`);
+  });
+}).catch(console.error);
