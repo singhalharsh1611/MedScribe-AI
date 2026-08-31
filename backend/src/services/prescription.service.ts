@@ -2,7 +2,7 @@ import axios from 'axios';
 import path from 'path';
 import { distance } from 'fastest-levenshtein';
 import { doubleMetaphone } from 'double-metaphone';
-import pool from './db.service';
+import pool, { logMedGemmaUsage } from './db.service';
 
 interface Drug {
     brand_name: string;
@@ -135,6 +135,14 @@ CRITICAL RULES:
     });
 
     try {
+        if (response.data.usage) {
+            const inTokens = response.data.usage.prompt_tokens || 0;
+            const outTokens = response.data.usage.completion_tokens || 0;
+            const cost = (inTokens / 1000 * 0.001) + (outTokens / 1000 * 0.002);
+            console.log(`[MedGemma] NER Cost: $${cost.toFixed(6)} (In: ${inTokens}, Out: ${outTokens})`);
+            await logMedGemmaUsage('NER Extraction', inTokens, outTokens, cost).catch(e => console.error('Failed to log MedGemma usage:', e));
+        }
+
         const content = response.data.choices[0].message.content;
         const jsonStr = content.replace(/```json/g, '').replace(/```/g, '').trim();
         const extracted = JSON.parse(jsonStr);
@@ -224,19 +232,22 @@ export const mapDrugsToDatabase = (extractedDrugs: string[]) => {
             auto_picked: autoPicked ? {
                 brand_name: autoPicked.brand_name,
                 salt: autoPicked.salt,
-                score: autoPicked.score
+                score: autoPicked.score,
+                phonetic_code: autoPicked.phonetic_primary
             } : null,
             top_phonetic: phoneticResults.slice(0, 5).map(r => ({
                 brand_name: r.brand_name,
                 salt: r.salt,
                 match_type: r.match_type,
-                score: r.score
+                score: r.score,
+                phonetic_code: r.phonetic_primary
             })),
             top_fuzzy: topFuzzy.slice(0, 5).map(r => ({
                 brand_name: r.brand_name,
                 salt: r.salt,
                 match_type: r.match_type,
-                score: r.score
+                score: r.score,
+                phonetic_code: r.phonetic_primary
             }))
         });
     }
@@ -351,6 +362,15 @@ REQUIRED JSON FORMAT:
                 'Content-Type': 'application/json'
             }
         });
+        
+        if (res.data.usage) {
+            const inTokens = res.data.usage.prompt_tokens || 0;
+            const outTokens = res.data.usage.completion_tokens || 0;
+            const cost = (inTokens / 1000 * 0.001) + (outTokens / 1000 * 0.002);
+            console.log(`[MedGemma] Prescription Cost: $${cost.toFixed(6)} (In: ${inTokens}, Out: ${outTokens})`);
+            await logMedGemmaUsage('Prescription Generation', inTokens, outTokens, cost).catch(e => console.error('Failed to log MedGemma usage:', e));
+        }
+
         aiResponse = res.data.choices[0].message.content;
     } catch (e: any) {
         throw new Error('Failed to generate prescription with LLM: ' + (e.response?.data?.error || e.message));

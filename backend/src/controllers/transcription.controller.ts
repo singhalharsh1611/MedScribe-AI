@@ -59,7 +59,7 @@ export const handleTranscription = async (req: Request, res: Response, next: Nex
 
     const usage = await logUsage(durationSeconds, `[${mode.toUpperCase()}] ` + result.text, audioUrl);
     console.log(`[Usage] Logged usage: ID ${usage.id}, Duration: ${durationSeconds.toFixed(2)}s, Cost: ₹${usage.costInr.toFixed(4)}`);
-
+    console.log(`Detected language: ${result.detectedLanguage}`);
     res.write(`data: ${JSON.stringify({
       type: 'done',
       text: result.text,

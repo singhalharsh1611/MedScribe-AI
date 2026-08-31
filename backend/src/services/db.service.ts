@@ -37,13 +37,23 @@ export const logTranslation = async (sourceLanguage: string, targetLanguage: str
   return result.rows[0].id;
 };
 
+export const logMedGemmaUsage = async (operation: string, promptTokens: number, completionTokens: number, costUsd: number) => {
+  const query = `
+    INSERT INTO medgemma_logs (operation, prompt_tokens, completion_tokens, cost_usd, timestamp) VALUES ($1, $2, $3, $4, CURRENT_TIMESTAMP) RETURNING id
+  `;
+  const result = await pool.query(query, [operation, promptTokens, completionTokens, costUsd]);
+  return result.rows[0].id;
+};
+
 export const getUsageStats = async () => {
   const usageResult = await pool.query(`SELECT id, duration_seconds, cost_inr, transcription_text, timestamp, audio_url FROM usage ORDER BY timestamp DESC LIMIT 50`);
   const translationResult = await pool.query(`SELECT id, source_language, target_language, text_length, translation_time_ms, timestamp, cost_inr FROM translation_logs ORDER BY timestamp DESC LIMIT 50`);
+  const medgemmaResult = await pool.query(`SELECT id, operation, prompt_tokens, completion_tokens, cost_usd, timestamp FROM medgemma_logs ORDER BY timestamp DESC LIMIT 50`);
   
   return {
     transcriptions: usageResult.rows,
-    translations: translationResult.rows
+    translations: translationResult.rows,
+    medgemma: medgemmaResult.rows
   };
 };
 
