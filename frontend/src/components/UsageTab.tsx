@@ -14,7 +14,7 @@ export function UsageTab({ usageStats }: UsageTabProps) {
       <h2 className="text-lg font-semibold text-slate-900 dark:text-slate-100">Billing & Usage</h2>
       
       <div>
-        <h3 className="text-sm font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-4">Transcription Operations</h3>
+        <h3 className="text-sm font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-4">Transcription + Translation Operations</h3>
         <div className="border border-slate-200 dark:border-slate-800 rounded-2xl overflow-x-auto">
           <table className="min-w-full text-left text-sm whitespace-nowrap">
             <thead className="bg-slate-50 dark:bg-slate-800/50 border-b border-slate-200 dark:border-slate-800 text-slate-500 dark:text-slate-400 font-semibold">
@@ -45,36 +45,6 @@ export function UsageTab({ usageStats }: UsageTabProps) {
       </div>
       
       <div>
-        <h3 className="text-sm font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-4">Translation Operations</h3>
-        <div className="border border-slate-200 dark:border-slate-800 rounded-2xl overflow-x-auto">
-          <table className="min-w-full text-left text-sm whitespace-nowrap">
-            <thead className="bg-slate-50 dark:bg-slate-800/50 border-b border-slate-200 dark:border-slate-800 text-slate-500 dark:text-slate-400 font-semibold">
-              <tr>
-                <th className="px-6 py-4">Timestamp</th>
-                <th className="px-6 py-4">Route</th>
-                <th className="px-6 py-4">Length</th>
-                <th className="px-6 py-4">Latency</th>
-                <th className="px-6 py-4">Cost (INR)</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-slate-100 dark:divide-slate-800/50">
-              {(usageStats?.translations || []).map((stat: any, i: number) => (
-                <tr key={i} className="hover:bg-slate-50 dark:hover:bg-slate-800/20">
-                  <td className="px-6 py-4 text-slate-600 dark:text-slate-300">{new Date(stat.timestamp).toLocaleString()}</td>
-                  <td className="px-6 py-4 font-medium text-slate-900 dark:text-slate-100">{stat.source_language} → {stat.target_language}</td>
-                  <td className="px-6 py-4 text-slate-600 dark:text-slate-300">{stat.text_length} chars</td>
-                  <td className="px-6 py-4 text-slate-600 dark:text-slate-300">{stat.translation_time_ms} ms</td>
-                  <td className="px-6 py-4 font-mono font-medium text-emerald-600 dark:text-emerald-400">₹{stat.cost_inr ? stat.cost_inr.toFixed(4) : '0.0000'}</td>
-                </tr>
-              ))}
-              {(!usageStats?.translations || usageStats.translations.length === 0) && (
-                <tr><td colSpan={6} className="px-6 py-8 text-center text-slate-400">No records found.</td></tr>
-              )}
-            </tbody>
-          </table>
-        </div>
-      </div>
-      <div>
         <h3 className="text-sm font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-4">MedGemma Operations</h3>
         <div className="border border-slate-200 dark:border-slate-800 rounded-2xl overflow-x-auto">
           <table className="min-w-full text-left text-sm whitespace-nowrap">
@@ -82,6 +52,7 @@ export function UsageTab({ usageStats }: UsageTabProps) {
               <tr>
                 <th className="px-6 py-4">Timestamp</th>
                 <th className="px-6 py-4">Operation</th>
+                <th className="px-6 py-4">Context</th>
                 <th className="px-6 py-4">Tokens (In / Out)</th>
                 <th className="px-6 py-4">Cost (USD)</th>
               </tr>
@@ -91,12 +62,13 @@ export function UsageTab({ usageStats }: UsageTabProps) {
                 <tr key={i} className="hover:bg-slate-50 dark:hover:bg-slate-800/20">
                   <td className="px-6 py-4 text-slate-600 dark:text-slate-300">{new Date(stat.timestamp).toLocaleString()}</td>
                   <td className="px-6 py-4 font-medium text-slate-900 dark:text-slate-100">{stat.operation}</td>
+                  <td className="px-6 py-4 text-slate-600 dark:text-slate-300 truncate max-w-[200px]" title={stat.context_text}>{stat.context_text || '-'}</td>
                   <td className="px-6 py-4 text-slate-600 dark:text-slate-300">{stat.prompt_tokens} / {stat.completion_tokens}</td>
                   <td className="px-6 py-4 font-mono font-medium text-emerald-600 dark:text-emerald-400">${stat.cost_usd ? stat.cost_usd.toFixed(6) : '0.000000'}</td>
                 </tr>
               ))}
               {(!usageStats?.medgemma || usageStats.medgemma.length === 0) && (
-                <tr><td colSpan={4} className="px-6 py-8 text-center text-slate-400">No records found.</td></tr>
+                <tr><td colSpan={5} className="px-6 py-8 text-center text-slate-400">No records found.</td></tr>
               )}
             </tbody>
           </table>

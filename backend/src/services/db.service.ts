@@ -37,18 +37,18 @@ export const logTranslation = async (sourceLanguage: string, targetLanguage: str
   return result.rows[0].id;
 };
 
-export const logMedGemmaUsage = async (operation: string, promptTokens: number, completionTokens: number, costUsd: number) => {
+export const logMedGemmaUsage = async (operation: string, promptTokens: number, completionTokens: number, costUsd: number, contextText: string = '') => {
   const query = `
-    INSERT INTO medgemma_logs (operation, prompt_tokens, completion_tokens, cost_usd, timestamp) VALUES ($1, $2, $3, $4, CURRENT_TIMESTAMP) RETURNING id
+    INSERT INTO medgemma_logs (operation, prompt_tokens, completion_tokens, cost_usd, context_text, timestamp) VALUES ($1, $2, $3, $4, $5, CURRENT_TIMESTAMP) RETURNING id
   `;
-  const result = await pool.query(query, [operation, promptTokens, completionTokens, costUsd]);
+  const result = await pool.query(query, [operation, promptTokens, completionTokens, costUsd, contextText]);
   return result.rows[0].id;
 };
 
 export const getUsageStats = async () => {
   const usageResult = await pool.query(`SELECT id, duration_seconds, cost_inr, transcription_text, timestamp, audio_url FROM usage ORDER BY timestamp DESC LIMIT 50`);
   const translationResult = await pool.query(`SELECT id, source_language, target_language, text_length, translation_time_ms, timestamp, cost_inr FROM translation_logs ORDER BY timestamp DESC LIMIT 50`);
-  const medgemmaResult = await pool.query(`SELECT id, operation, prompt_tokens, completion_tokens, cost_usd, timestamp FROM medgemma_logs ORDER BY timestamp DESC LIMIT 50`);
+  const medgemmaResult = await pool.query(`SELECT id, operation, prompt_tokens, completion_tokens, cost_usd, context_text, timestamp FROM medgemma_logs ORDER BY timestamp DESC LIMIT 50`);
   
   return {
     transcriptions: usageResult.rows,
