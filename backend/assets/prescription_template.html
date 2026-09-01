@@ -400,6 +400,7 @@
             const cells = row.getElementsByTagName('td');
             for(let i=0; i<cells.length; i++) {
                 cells[i].setAttribute('contenteditable', 'true');
+                cells[i].setAttribute('spellcheck', 'false');
                 cells[i].style.outline = 'none';
             }
             
