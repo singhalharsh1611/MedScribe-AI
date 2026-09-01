@@ -9,12 +9,16 @@ interface Drug {
     salt: string;
     phonetic_primary: string;
     brand_name_normalized: string;
+    brand_name_normalized_first: string;
+    brand_name_normalized_alpha: string;
 }
 
 interface DrugBuckets {
     list: Drug[];
     byLength: Map<number, Drug[]>;
     namesByLength: Map<number, string[]>;
+    firstNamesByLength: Map<number, string[]>;
+    alphaNamesByLength: Map<number, string[]>;
     byPhonetic: Map<string, Drug[]>;
 }
 
@@ -52,16 +56,23 @@ export async function initPrescriptionService() {
         const result = await pool.query("SELECT brand_name, salt, phonetic_code FROM drugs");
         const rows = result.rows;
 
-        const list = rows.map(row => ({
-            brand_name: row.brand_name,
-            salt: row.salt === 'UNKNOWN_SALT' || !row.salt ? '' : row.salt,
-            phonetic_primary: row.phonetic_code,
-            brand_name_normalized: normalizeDrugName(row.brand_name)
-        }));
+        const list = rows.map(row => {
+            const normalized = normalizeDrugName(row.brand_name);
+            return {
+                brand_name: row.brand_name,
+                salt: row.salt === 'UNKNOWN_SALT' || !row.salt ? '' : row.salt,
+                phonetic_primary: row.phonetic_code,
+                brand_name_normalized: normalized,
+                brand_name_normalized_first: normalized.split(' ')[0] || normalized,
+                brand_name_normalized_alpha: normalized.replace(/[^a-z]+/gi, ' ').trim()
+            };
+        });
 
         // OPTIMIZATION: Bucket by string length and phonetic code for extreme O(1) filtering
         const byLength = new Map<number, Drug[]>();
         const namesByLength = new Map<number, string[]>();
+        const firstNamesByLength = new Map<number, string[]>();
+        const alphaNamesByLength = new Map<number, string[]>();
         const byPhonetic = new Map<string, Drug[]>();
         
         for (const drug of list) {
@@ -70,9 +81,13 @@ export async function initPrescriptionService() {
             if (!byLength.has(len)) {
                 byLength.set(len, []);
                 namesByLength.set(len, []);
+                firstNamesByLength.set(len, []);
+                alphaNamesByLength.set(len, []);
             }
             byLength.get(len)!.push(drug);
             namesByLength.get(len)!.push(drug.brand_name_normalized);
+            firstNamesByLength.get(len)!.push(drug.brand_name_normalized_first);
+            alphaNamesByLength.get(len)!.push(drug.brand_name_normalized_alpha);
 
             // Phonetic Bucketing
             if (drug.phonetic_primary) {
@@ -83,7 +98,7 @@ export async function initPrescriptionService() {
             }
         }
 
-        cachedDrugs = { list, byLength, namesByLength, byPhonetic };
+        cachedDrugs = { list, byLength, namesByLength, firstNamesByLength, alphaNamesByLength, byPhonetic };
         
         console.log(`[Prescription Service] 🚀 Ready! Successfully indexed ${list.length} drugs in RAM.\n`);
         return cachedDrugs.list;
@@ -97,6 +112,23 @@ export async function initPrescriptionService() {
 export function getDrugCache() {
     if (!cachedDrugs) initPrescriptionService();
     return cachedDrugs;
+}
+
+export function searchDrugs(query: string) {
+    const cache = getDrugCache();
+    if (!cache || !cache.list) return [];
+    
+    const q = query.toLowerCase().trim();
+    if (!q) return [];
+    
+    const results = [];
+    for (const drug of cache.list) {
+        if (drug.brand_name_normalized.includes(q) || drug.brand_name.toLowerCase().includes(q)) {
+            results.push(drug.brand_name);
+            if (results.length >= 50) break;
+        }
+    }
+    return results;
 }
 
 /**
@@ -171,18 +203,33 @@ export const mapDrugsToDatabase = (extractedDrugs: string[]) => {
         const [extPrimary] = doubleMetaphone(extLower.split(' ')[0] || extLower);
 
         const extLen = extLower.length;
+        const extFirst = extLower.split(' ')[0] || extLower;
+        const extAlpha = extLower.replace(/[^a-z]+/gi, ' ').trim();
         const fuzzyResults: any[] = [];
         
         for (let l = Math.max(1, extLen - 6); l <= extLen + 6; l++) {
             if (cache.byLength.has(l)) {
                 const arr = cache.byLength.get(l)!;
                 const namesArr = cache.namesByLength.get(l)!;
+                const firstNamesArr = cache.firstNamesByLength.get(l)!;
+                const alphaNamesArr = cache.alphaNamesByLength.get(l)!;
                 for (let i = 0; i < arr.length; i++) {
                     const target = namesArr[i];
-                    const dist = distance(extLower, target);
                     
-                    const maxLength = Math.max(extLen, target.length);
-                    let score = Math.max(0, 100 - (dist / maxLength) * 100);
+                    // 1. Full string distance (Number-Blind)
+                    const tarAlpha = alphaNamesArr[i];
+                    const dist = distance(extAlpha, tarAlpha);
+                    const maxLength = Math.max(extAlpha.length, tarAlpha.length);
+                    const fullScore = maxLength === 0 ? 100 : Math.max(0, 100 - (dist / maxLength) * 100);
+                    
+                    // 2. First word distance (Heavy Weighting)
+                    const tarFirst = firstNamesArr[i];
+                    const firstDist = distance(extFirst, tarFirst);
+                    const firstMax = Math.max(extFirst.length, tarFirst.length);
+                    const firstScore = Math.max(0, 100 - (firstDist / firstMax) * 100);
+                    
+                    // Blend: 60% first word, 40% full string
+                    let score = (firstScore * 0.6) + (fullScore * 0.4);
                     
                     // Tie breakers for exact prefixes and length penalties
                     if (target.startsWith(extLower)) score += 5;
@@ -196,53 +243,59 @@ export const mapDrugsToDatabase = (extractedDrugs: string[]) => {
         }
         
         // Sort with a stable secondary sort alphabetically if scores match exactly
-        fuzzyResults.sort((a, b) => b.score - a.score || a.brand_name.localeCompare(b.brand_name));
-        const topFuzzy = fuzzyResults.slice(0, 5);
+        const uniqueFuzzy = Array.from(new Map(fuzzyResults.map(item => [item.brand_name, item])).values());
+        uniqueFuzzy.sort((a, b) => b.score - a.score || a.brand_name.localeCompare(b.brand_name));
+        const topFuzzy = uniqueFuzzy.slice(0, 6);
 
         let phoneticResults: any[] = [];
-        if (extPrimary && cache.byPhonetic.has(extPrimary)) {
-            const phoneticBucket = cache.byPhonetic.get(extPrimary)!;
-            phoneticResults = phoneticBucket
-                .map(d => {
-                    const dist = distance(extLower, d.brand_name_normalized);
-                    const maxLength = Math.max(extLen, d.brand_name_normalized.length);
-                    let score = Math.max(0, 100 - (dist / maxLength) * 100);
-                    
-                    // Tie breakers
-                    if (d.brand_name_normalized.startsWith(extLower)) score += 5;
-                    score -= Math.abs(d.brand_name_normalized.length - extLen) * 0.01;
-                    
-                    return { ...d, score, match_type: 'Phonetic' };
-                })
-                .sort((a, b) => b.score - a.score || a.brand_name.localeCompare(b.brand_name))
-                .slice(0, 5);
-        }
-
-        // Logic: Auto-pick if top fuzzy and top phonetic are identical
-        let autoPicked = null;
-        if (topFuzzy.length > 0 && phoneticResults.length > 0) {
-            if (topFuzzy[0].brand_name === phoneticResults[0].brand_name) {
-                autoPicked = topFuzzy[0];
+        if (extPrimary) {
+            for (const [phoneCode, drugs] of cache.byPhonetic.entries()) {
+                // Fuzzy Phonetic: distance <= 1
+                if (phoneCode === extPrimary || distance(extPrimary, phoneCode) <= 1) {
+                    const isExactPhonetic = phoneCode === extPrimary;
+                    for (const d of drugs) {
+                        // Same blending logic for ranking within phonetic bucket
+                        const tarFirst = d.brand_name_normalized_first;
+                        const firstDist = distance(extFirst, tarFirst);
+                        const firstMax = Math.max(extFirst.length, tarFirst.length);
+                        const firstScore = Math.max(0, 100 - (firstDist / firstMax) * 100);
+                        
+                        const tarAlpha = d.brand_name_normalized_alpha;
+                        const dist = distance(extAlpha, tarAlpha);
+                        const maxLength = Math.max(extAlpha.length, tarAlpha.length);
+                        const fullScore = maxLength === 0 ? 100 : Math.max(0, 100 - (dist / maxLength) * 100);
+                        
+                        let score = (firstScore * 0.6) + (fullScore * 0.4);
+                        
+                        // Tie breakers
+                        if (d.brand_name_normalized.startsWith(extLower)) score += 5;
+                        score -= Math.abs(d.brand_name_normalized.length - extLen) * 0.01;
+                        
+                        // HUGE boost for exact phonetic match so they always rank above near-phonetic matches
+                        if (isExactPhonetic) score += 50;
+                        
+                        phoneticResults.push({ ...d, score, match_type: isExactPhonetic ? 'Phonetic' : 'Near-Phonetic' });
+                    }
+                }
             }
+            
+            const uniquePhonetic = Array.from(new Map(phoneticResults.map(item => [item.brand_name, item])).values());
+            phoneticResults = uniquePhonetic
+                .sort((a, b) => b.score - a.score || a.brand_name.localeCompare(b.brand_name))
+                .slice(0, 6);
         }
 
         mappedResults.push({
             original_extracted_word: extractedWord,
             phonetic_code: extPrimary,
-            auto_picked: autoPicked ? {
-                brand_name: autoPicked.brand_name,
-                salt: autoPicked.salt,
-                score: autoPicked.score,
-                phonetic_code: autoPicked.phonetic_primary
-            } : null,
-            top_phonetic: phoneticResults.slice(0, 5).map(r => ({
+            top_phonetic: phoneticResults.slice(0, 6).map(r => ({
                 brand_name: r.brand_name,
                 salt: r.salt,
                 match_type: r.match_type,
                 score: r.score,
                 phonetic_code: r.phonetic_primary
             })),
-            top_fuzzy: topFuzzy.slice(0, 5).map(r => ({
+            top_fuzzy: topFuzzy.slice(0, 6).map(r => ({
                 brand_name: r.brand_name,
                 salt: r.salt,
                 match_type: r.match_type,
@@ -277,13 +330,13 @@ DETAILED INSTRUCTIONS:
    - Professionally summarize the "chief_complaint" and "hpi" (History of Present Illness) using standard medical terminology.
    - Format vitals cleanly with units if mentioned (e.g., "BP: 120/80 mmHg", "Temp: 98.6 F"). Leave as "N/A" if absent.
 
-2. MEDICATION SELECTION (ENTITY RESOLUTION):
-   - You are provided with a JSON of extracted words and their top 10 database matches (5 Phonetic, 5 Fuzzy).
-   - For each medication, comprehensively evaluate ALL 10 matches.
-   - STEP 1: If 'auto_picked' exists for a drug, you MUST strictly use its 'brand_name' and skip the other steps.
-   - STEP 2: Evaluate the phonetic and fuzzy matches to find the candidate that most closely resembles the spoken medication name in the transcript.
-   - STEP 3: Give HIGHER priority and weightage to 'top_phonetic' matches, as they are phonetically identical to what the doctor spoke (bypassing STT spelling errors).
-   - CRITICAL: You MUST pick an exact 'brand_name' from the provided arrays. NEVER output the 'original_extracted_word'. Do NOT invent or guess medication names.
+  2. MEDICATION SELECTION (ENTITY RESOLUTION):
+     - You are provided with a JSON of extracted words and their top database matches.
+     - For each medication, comprehensively evaluate ALL provided matches.
+     - STEP 1: Evaluate the phonetic and fuzzy matches to find the candidate that most closely resembles the spoken medication name in the transcript.
+     - STEP 2: Give HIGHER priority and weightage to 'top_phonetic' matches, as they are phonetically identical to what the doctor spoke (bypassing STT spelling errors).
+     - STEP 3: Pay CLOSE ATTENTION to ALL qualifiers in the extracted name (e.g., numbers like "30", "500", or words like "Trio", "Plus", "Forte", "XR"). If the transcript contains these qualifiers, you MUST pick the database match that also contains them, even if it has a slightly lower score!
+     - CRITICAL: You MUST pick an exact 'brand_name' from the provided arrays. NEVER output the 'original_extracted_word'. Do NOT invent or guess medication names.
 
 3. DOSAGE & ADMINISTRATION:
    - **dose**: Extract the exact quantity to consume at one time (e.g., "1 Tablet", "10 ml", "50 mg", "2 puffs"). If not spoken, use "As directed".

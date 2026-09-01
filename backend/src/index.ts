@@ -19,7 +19,9 @@ const port = process.env.PORT || 3001;
 
 app.use(cors({ origin: process.env.FRONTEND_URL || 'http://localhost:7000' }));
 app.use(express.json());
-app.use(morgan('dev')); // Add request logging
+app.use(morgan('dev', {
+    skip: (req) => req.url.includes('/api/prescription/search')
+})); // Add request logging
 
 app.use('/api/languages', languagesRoute);
 app.use('/api/transcription', transcriptionRoute);

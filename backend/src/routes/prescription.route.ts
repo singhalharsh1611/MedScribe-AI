@@ -1,8 +1,9 @@
 import { Router } from 'express';
-import { handleExtractDrugs, handleMapDrugs, handleGeneratePrescription, handleSavePrescription, handleGetHistory, handleGetHistoryById } from '../controllers/prescription.controller';
+import { handleExtractDrugs, handleMapDrugs, handleGeneratePrescription, handleSavePrescription, handleGetHistory, handleGetHistoryById, handleSearchDrugs } from '../controllers/prescription.controller';
 
 const router = Router();
 
+router.get('/search', handleSearchDrugs);
 router.post('/extract', handleExtractDrugs);
 router.post('/map', handleMapDrugs);
 router.post('/generate', handleGeneratePrescription);

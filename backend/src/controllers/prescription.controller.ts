@@ -83,3 +83,20 @@ export const handleGetHistoryById = async (req: Request, res: Response) => {
         res.status(500).json({ error: error.message || 'Failed to fetch prescription' });
     }
 };
+
+export const handleSearchDrugs = async (req: Request, res: Response) => {
+    try {
+        const { q } = req.query;
+        if (!q || typeof q !== 'string') {
+            return res.status(400).json({ error: 'Query parameter q is required' });
+        }
+        
+        // Use the preloaded cache for superfast search
+        const { searchDrugs } = await import('../services/prescription.service');
+        const results = searchDrugs(q);
+        res.json({ results });
+    } catch (error: any) {
+        console.error(error);
+        res.status(500).json({ error: error.message || 'Failed to search drugs' });
+    }
+};
