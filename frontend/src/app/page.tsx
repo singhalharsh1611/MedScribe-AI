@@ -56,6 +56,11 @@ export default function TranslatorApp() {
 
   const pendingAudioRef = useRef<ArrayBufferLike[]>([]);
   const isBackendReadyRef = useRef(false);
+  const transcriptionRef = useRef('');
+
+  useEffect(() => {
+      transcriptionRef.current = transcription;
+  }, [transcription]);
 
   const onDataAvailable = (data: Int16Array | Blob) => {
     if (isLiveMode && wsRef.current) {
@@ -78,20 +83,22 @@ export default function TranslatorApp() {
   const { isRecording, audioBlob, setAudioBlob, startRecording, stopRecording, clearAudio } = useAudioRecorder(isLiveMode ? { onDataAvailable } : undefined);
 
 
-  const handleDoctorGenerate = async () => {
-    if (!transcription.trim()) return;
+  const handleDoctorGenerate = async (transcriptOverride?: string) => {
+    const textToProcess = typeof transcriptOverride === 'string' ? transcriptOverride : transcription;
+    if (!textToProcess.trim()) return;
+    
     setIsExtracting(true);
     setIsGenerating(true);
     setError(null);
     setPrescriptionHtml(null);
     setPipelineMetrics(null);
-      fetchUsageStats();
+    fetchUsageStats();
     setMappedDrugs([]);
 
     try {
       // 1. Extract
       const startExtract = performance.now();
-      const extracted = await extractDrugs(transcription);
+      const extracted = await extractDrugs(textToProcess);
       const extractTime = performance.now() - startExtract;
 
       // 2. Map
@@ -102,13 +109,13 @@ export default function TranslatorApp() {
 
       // 3. Generate
       const startGen = performance.now();
-      const result = await generatePrescription(transcription, mapped);
+      const result = await generatePrescription(textToProcess, mapped);
       const generateTime = performance.now() - startGen;
 
       setPatientName(result.patientName || 'Unknown Patient');
       setDiagnosis(result.diagnosis || 'Unknown Diagnosis');
       
-      const editableHtml = result.html.replace('<body>', '<body contenteditable="true">');
+      const editableHtml = result.html.replace('<body>', '<body contenteditable="true" spellcheck="false">');
       setPrescriptionHtml(editableHtml);
       
       setPipelineMetrics({ extractMs: extractTime, mapMs: mapTime, generateMs: generateTime });
@@ -236,6 +243,10 @@ export default function TranslatorApp() {
         pendingAudioRef.current = [];
         setIsTranscribing(false);
         fetchUsageStats(); // Refresh usage when done
+
+        if (activeTab === 'doctor' && transcriptionRef.current.trim()) {
+           handleDoctorGenerate(transcriptionRef.current);
+        }
       };
     } else {
       if (wsRef.current) {
@@ -246,16 +257,30 @@ export default function TranslatorApp() {
     }
   }, [isRecording, isLiveMode, spokenLang, activeTab]);
 
+  const wasRecordingRef = useRef(false);
+  useEffect(() => {
+      if (isRecording) wasRecordingRef.current = true;
+  }, [isRecording]);
+
   useEffect(() => {
     if (audioBlob) {
       const url = URL.createObjectURL(audioBlob);
       setAudioUrl(url);
+      
+      // Auto-trigger if this blob came from a stopped recording (not a file upload)
+      if (wasRecordingRef.current && !isLiveMode && activeTab === 'doctor') {
+          wasRecordingRef.current = false;
+          // We use a small timeout to let the UI update first
+          setTimeout(() => {
+              handleTranscribe();
+          }, 100);
+      }
         
-  return () => URL.revokeObjectURL(url);
+      return () => URL.revokeObjectURL(url);
     } else {
       setAudioUrl(null);
     }
-  }, [audioBlob]);
+  }, [audioBlob, isLiveMode, activeTab]);
 
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
@@ -282,6 +307,10 @@ export default function TranslatorApp() {
       });
       setTranscription(result.text);
       fetchUsageStats();
+      
+      if (activeTab === 'doctor') {
+         await handleDoctorGenerate(result.text);
+      }
     } catch (err: any) {
       setError(err.message || 'Transcription failed.');
     } finally {
@@ -357,7 +386,7 @@ export default function TranslatorApp() {
       setPatientName(result.patientName || 'Unknown Patient');
       setDiagnosis(result.diagnosis || 'Unknown Diagnosis');
       
-      const editableHtml = result.html.replace('<body>', '<body contenteditable="true">');
+      const editableHtml = result.html.replace('<body>', '<body contenteditable="true" spellcheck="false">');
       setPrescriptionHtml(editableHtml);
       
       setPipelineMetrics(prev => prev ? { ...prev, generateMs: generateTime } : null);
@@ -408,7 +437,7 @@ export default function TranslatorApp() {
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
             
             {/* LEFT COLUMN: Input & STT */}
-            <div className={`flex flex-col gap-6 ${prescriptionHtml ? 'lg:col-span-5' : 'lg:col-span-8 lg:col-start-3'}`}>
+            <div className={`flex flex-col gap-6 ${(prescriptionHtml || isExtracting || isGenerating || (isTranscribing && activeTab === 'doctor')) ? 'lg:col-span-5' : 'lg:col-span-8 lg:col-start-3'}`}>
               <DictationPanel 
                 isLiveMode={isLiveMode}
                 setIsLiveMode={setIsLiveMode}
@@ -435,16 +464,28 @@ export default function TranslatorApp() {
             </div>
 
             {/* RIGHT COLUMN: Output & Preview */}
-            <div className={`${prescriptionHtml ? 'lg:col-span-7' : 'hidden'}`}>
-              <PrescriptionPreview 
-                prescriptionHtml={prescriptionHtml}
-                isSaving={isSaving}
-                handleSavePrescription={handleSavePrescription}
-                pipelineMetrics={pipelineMetrics}
-                isGenerating={isGenerating}
-                iframeRef={iframeRef}
-                activeTab={activeTab as 'doctor' | 'developer'}
-              />
+            <div className={`${(prescriptionHtml || isExtracting || isGenerating || (isTranscribing && activeTab === 'doctor')) ? 'lg:col-span-7' : 'hidden'}`}>
+              {!prescriptionHtml && (isExtracting || isGenerating || isTranscribing) ? (
+                <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800/60 rounded-3xl shadow-sm flex flex-col items-center justify-center h-full min-h-[500px]">
+                   <div className="animate-spin h-10 w-10 border-4 border-blue-500/30 border-t-blue-500 rounded-full mb-4"></div>
+                   <h3 className="text-lg font-semibold text-slate-800 dark:text-slate-200">
+                     {isTranscribing ? 'Transcribing Audio...' : isExtracting ? 'Analyzing Medical Context...' : 'Drafting Prescription...'}
+                   </h3>
+                   <p className="text-sm text-slate-500 mt-2 text-center max-w-sm">
+                     MedGemma is carefully extracting medications, mapping dosages, and formulating your clinical document.
+                   </p>
+                </div>
+              ) : (
+                <PrescriptionPreview 
+                  prescriptionHtml={prescriptionHtml}
+                  isSaving={isSaving}
+                  handleSavePrescription={handleSavePrescription}
+                  pipelineMetrics={pipelineMetrics}
+                  isGenerating={isGenerating}
+                  iframeRef={iframeRef}
+                  activeTab={activeTab as 'doctor' | 'developer'}
+                />
+              )}
             </div>
           </div>
         )}

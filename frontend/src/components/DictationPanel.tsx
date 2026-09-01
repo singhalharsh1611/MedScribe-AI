@@ -95,11 +95,11 @@ export function DictationPanel({
               <audio src={audioUrl} controls className="w-full h-10 rounded-xl bg-slate-50 dark:bg-slate-800" />
               <div className="flex gap-3">
                 <button
-                  onClick={handleTranscribe}
+                  onClick={activeTab === 'doctor' ? handleTranscribe : handleTranscribe} // handleTranscribe triggers everything in doctor mode
                   disabled={isTranscribing}
                   className="flex-1 bg-blue-50 dark:bg-blue-900/20 hover:bg-blue-100 dark:hover:bg-blue-900/40 text-blue-700 dark:text-blue-300 border border-blue-200 dark:border-blue-800/50 px-4 py-2.5 rounded-xl text-sm font-medium transition-colors disabled:opacity-50"
                 >
-                  {isTranscribing ? 'Processing...' : 'Transcribe'}
+                  {isTranscribing ? 'Processing Pipeline...' : activeTab === 'doctor' ? 'Generate Rx' : 'Transcribe'}
                 </button>
                 <button
                   onClick={clearAudio}
@@ -113,7 +113,7 @@ export function DictationPanel({
         </div>
       </div>
 
-      {(transcription || isTranscribing) && (
+      {activeTab !== 'doctor' && (transcription || isTranscribing) && (
         <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800/60 rounded-3xl shadow-sm shadow-slate-200/50 dark:shadow-none flex flex-col overflow-hidden mt-6">
           <div className="bg-slate-50 dark:bg-slate-800/50 p-4 border-b border-slate-200 dark:border-slate-800 flex justify-between items-center">
             <h3 className="text-sm font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 flex items-center gap-2">
