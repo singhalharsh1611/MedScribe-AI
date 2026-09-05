@@ -407,7 +407,7 @@ REQUIRED JSON FORMAT:
         const res = await axios.post(apiUrl, {
             model: model,
             messages: [{ role: 'user', content: prompt }],
-            max_tokens: 2000,
+            max_tokens: 8000,
             temperature: 0.3
         }, {
             headers: {

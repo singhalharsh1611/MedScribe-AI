@@ -1,3 +1,223 @@
 @import "tailwindcss";
 
-@custom-variant dark (&:is(.dark *));
+/* Design System from SleekCare Stitch files */
+@theme {
+  --font-sans: "Montserrat", sans-serif;
+
+  --color-primary: #1841ac;
+  --color-primary-container: #385bc5;
+  --color-primary-fixed: #dce1ff;
+  --color-primary-fixed-dim: #b6c4ff;
+  --color-on-primary: #ffffff;
+  --color-on-primary-container: #d8deff;
+  --color-on-primary-fixed: #00164f;
+  --color-on-primary-fixed-variant: #103da8;
+  --color-inverse-primary: #b6c4ff;
+  --color-accent-dark: #2B489E;
+  --color-accent-light: #748DD7;
+
+  --color-secondary: #425ba2;
+  --color-secondary-container: #98b1fe;
+  --color-secondary-fixed: #dbe1ff;
+  --color-secondary-fixed-dim: #b4c5ff;
+  --color-on-secondary: #ffffff;
+  --color-on-secondary-container: #274187;
+  --color-on-secondary-fixed: #00174b;
+  --color-on-secondary-fixed-variant: #284389;
+
+  --color-tertiary: #005548;
+  --color-tertiary-container: #00705f;
+  --color-tertiary-fixed: #80f7dc;
+  --color-tertiary-fixed-dim: #62dac0;
+  --color-on-tertiary: #ffffff;
+  --color-on-tertiary-container: #7df4d9;
+  --color-on-tertiary-fixed: #00201a;
+  --color-on-tertiary-fixed-variant: #005144;
+
+  --color-background: #f8f9ff;
+  --color-on-background: #181c21;
+  --color-surface: #f8f9ff;
+  --color-surface-dim: #d8dae1;
+  --color-surface-bright: #f8f9ff;
+  --color-surface-tint: #3356c0;
+  --color-surface-variant: #e0e2e9;
+  --color-surface-container-lowest: #ffffff;
+  --color-surface-container-low: #f1f3fa;
+  --color-surface-container: #eceef5;
+  --color-surface-container-high: #e6e8ef;
+  --color-surface-container-highest: #e0e2e9;
+  --color-on-surface: #181c21;
+  --color-on-surface-variant: #444653;
+  --color-inverse-surface: #2d3136;
+  --color-inverse-on-surface: #eef1f7;
+
+  --color-error: #ba1a1a;
+  --color-error-container: #ffdad6;
+  --color-error-bg: #FFEBEB;
+  --color-on-error: #ffffff;
+  --color-on-error-container: #93000a;
+
+  --color-outline: #747684;
+  --color-outline-variant: #c4c5d5;
+
+  --color-card-surface: #FAFBFD;
+  --color-app-bg: #F3F5FC;
+  --color-container-tint: #E6E9F2;
+  --color-text-ink: #070C19;
+  --color-text-muted: #757575;
+  --color-border-divider: #A8A8A8;
+
+  --color-clinical-success: #14A38B;
+  --color-clinical-warning: #F2AC57;
+  --color-clinical-error: #FF7171;
+  --color-success-bg: #E8F6F4;
+  --color-warning-bg: #FEF6EC;
+
+  --spacing-space-2xs: 0.25rem;
+  --spacing-space-xs: 0.5rem;
+  --spacing-space-sm: 0.75rem;
+  --spacing-space-md: 1rem;
+  --spacing-space-lg: 1.5rem;
+  --spacing-space-xl: 2rem;
+  --spacing-space-2xl: 3rem;
+  --spacing-space-3xl: 4rem;
+  --spacing-gutter-mobile: 1rem;
+  --spacing-gutter-desktop: 1.5rem;
+  --spacing-margin-mobile: 1rem;
+  --spacing-margin-desktop: 2rem;
+
+  --radius: 0.25rem;
+  --radius-md: 0.375rem;
+  --radius-lg: 0.5rem;
+  --radius-xl: 0.75rem;
+  --radius-full: 9999px;
+
+  --text-headline-1: 36px;
+  --text-headline-2: 28px;
+  --text-headline-3: 22px;
+  --text-headline-4: 18px;
+  --text-headline-5: 15px;
+  --text-body-lg: 16px;
+  --text-body-md: 14px;
+  --text-body-sm: 12px;
+  --text-label-md: 13px;
+  --text-label-sm: 11px;
+}
+
+/* ── Base resets ───────────────────────────────────────────── */
+@layer base {
+  html, body {
+    margin: 0;
+    padding: 0;
+    font-family: 'Montserrat', sans-serif;
+    overscroll-behavior: none;
+  }
+  ::-webkit-scrollbar { display: none; }
+  * { box-sizing: border-box; }
+
+  .dark {
+    --color-background: #0b0d14;
+    --color-on-background: #e2e8f0;
+    --color-surface: #0b0d14;
+    --color-surface-container-lowest: #05060a;
+    --color-surface-container-low: #11141d;
+    --color-surface-container: #161a26;
+    --color-surface-container-high: #1c2130;
+    --color-surface-container-highest: #242a3d;
+    --color-card-surface: #10131c;
+    --color-text-ink: #f8fafc;
+    --color-on-surface-variant: #94a3b8;
+    --color-text-muted: #64748b;
+    --color-outline: #334155;
+    --color-outline-variant: #1e293b;
+    --color-container-tint: #141c2f;
+    --color-primary-fixed: #1e2942;
+    --color-secondary-fixed: #202b3d;
+    --color-tertiary-fixed: #142e2a;
+    --color-error-bg: #3f1a1a;
+    --color-warning-bg: #3b2c15;
+    --color-success-bg: #142e20;
+  }
+}
+
+/* ── Utility classes ───────────────────────────────────────── */
+@layer utilities {
+  .font-headline-1 { font-size: 36px; line-height: 44px; font-weight: 700; }
+  .font-headline-2 { font-size: 28px; line-height: 36px; font-weight: 700; }
+  .font-headline-3 { font-size: 22px; line-height: 28px; font-weight: 700; }
+  .font-headline-4 { font-size: 18px; line-height: 24px; font-weight: 700; }
+  .font-headline-5 { font-size: 15px; line-height: 20px; font-weight: 700; }
+  .font-body-lg   { font-size: 16px; line-height: 24px; font-weight: 500; }
+  .font-body-md   { font-size: 14px; line-height: 20px; font-weight: 500; }
+  .font-body-sm   { font-size: 12px; line-height: 16px; font-weight: 500; }
+  .font-label-md  { font-size: 13px; line-height: 16px; font-weight: 600; letter-spacing: 0.02em; }
+  .font-label-sm  { font-size: 11px; line-height: 14px; font-weight: 600; letter-spacing: 0.04em; }
+
+  .text-headline-1 { font-size: 36px; }
+  .text-headline-2 { font-size: 28px; }
+  .text-headline-3 { font-size: 22px; }
+  .text-headline-4 { font-size: 18px; }
+  .text-headline-5 { font-size: 15px; }
+  .text-body-lg   { font-size: 16px; }
+  .text-body-md   { font-size: 14px; }
+  .text-body-sm   { font-size: 12px; }
+  .text-label-md  { font-size: 13px; }
+  .text-label-sm  { font-size: 11px; }
+
+  /* Animation utility classes — keyframes defined below at top level */
+  .animate-fade-in-up   { animation: fade-in-up 0.25s ease-out forwards; }
+  .animate-blob-1       { animation: blob-1 12s infinite ease-in-out; will-change: transform; }
+  .animate-blob-2       { animation: blob-2 17s infinite ease-in-out; will-change: transform; }
+  .animate-blob-3       { animation: blob-3 22s infinite ease-in-out; will-change: transform; }
+  .animate-glide-in     { animation: glide-in 0.6s cubic-bezier(0.34, 1.56, 0.64, 1) forwards; }
+  .animate-float-up     { animation: float-up 0.6s cubic-bezier(0.16, 1, 0.3, 1) forwards; }
+}
+
+/* ── Keyframes — must be at top level, NOT inside @layer ───── */
+@keyframes fade-in-up {
+  from { opacity: 0; transform: translate(-50%, 1rem); }
+  to   { opacity: 1; transform: translate(-50%, 0); }
+}
+
+/* Blob 1 — fast, wide swing upper-left */
+@keyframes blob-1 {
+  0%   { transform: translate(0px,    0px)    scale(1.0) rotate(0deg);   }
+  15%  { transform: translate(120px, -80px)   scale(1.2) rotate(8deg);   }
+  30%  { transform: translate(-40px, -140px)  scale(0.9) rotate(-10deg); }
+  50%  { transform: translate(160px,  60px)   scale(1.3) rotate(20deg);  }
+  65%  { transform: translate(-80px,  100px)  scale(0.8) rotate(-5deg);  }
+  80%  { transform: translate(50px,  -60px)   scale(1.1) rotate(12deg);  }
+  100% { transform: translate(0px,    0px)    scale(1.0) rotate(0deg);   }
+}
+
+/* Blob 2 — slow, deep bottom-right drift */
+@keyframes blob-2 {
+  0%   { transform: translate(0px,   0px)    scale(1.0)  rotate(0deg);   }
+  20%  { transform: translate(-100px, 80px)  scale(1.25) rotate(-15deg); }
+  40%  { transform: translate(80px,   160px) scale(0.85) rotate(10deg);  }
+  60%  { transform: translate(-140px,-60px)  scale(1.15) rotate(-20deg); }
+  80%  { transform: translate(60px,   -100px) scale(0.95) rotate(8deg);  }
+  100% { transform: translate(0px,   0px)    scale(1.0)  rotate(0deg);   }
+}
+
+/* Blob 3 — very slow center pulse with orbit */
+@keyframes blob-3 {
+  0%   { transform: translate(0px,   0px)    scale(1.0)  rotate(0deg);   }
+  10%  { transform: translate(60px,  120px)  scale(1.35) rotate(12deg);  }
+  25%  { transform: translate(-120px,80px)   scale(0.75) rotate(-18deg); }
+  45%  { transform: translate(100px, -100px) scale(1.2)  rotate(25deg);  }
+  60%  { transform: translate(-80px, -140px) scale(0.9)  rotate(-8deg);  }
+  75%  { transform: translate(140px,  40px)  scale(1.1)  rotate(15deg);  }
+  90%  { transform: translate(-60px,  80px)  scale(0.85) rotate(-12deg); }
+  100% { transform: translate(0px,   0px)    scale(1.0)  rotate(0deg);   }
+}
+
+@keyframes glide-in {
+  0%   { opacity: 0; transform: translateX(50px); }
+  100% { opacity: 1; transform: translateX(0); }
+}
+
+@keyframes float-up {
+  0%   { opacity: 0; transform: translateY(16px) scale(0.98); }
+  100% { opacity: 1; transform: translateY(0) scale(1); }
+}
