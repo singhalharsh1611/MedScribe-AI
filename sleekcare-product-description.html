@@ -1,0 +1,304 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SleekCare AI Voice Prescription</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wght@500;600;700&family=IBM+Plex+Mono:wght@400;500;600&family=Newsreader:opsz,wght@6..72,400;6..72,500;6..72,600&display=swap">
+<style>
+:root{
+  --ground:#f3f4f1; --surface:#fbfbf9; --sunk:#eceee9;
+  --ink:#15181b; --ink2:#4a525a; --muted:#79828b;
+  --rule:#d8dcd6; --rule-soft:#e6e9e3;
+  --accent:#c25a15; --accent-tint:#f7e9dc;
+  --blue:#1b62c4; --blue-tint:#e2ebfa;
+  --shadow:0 1px 2px rgba(21,24,27,.05),0 8px 24px -12px rgba(21,24,27,.18);
+}
+@media (prefers-color-scheme:dark){
+  :root:not([data-theme="light"]){
+    --ground:#121517; --surface:#181c1f; --sunk:#0e1113;
+    --ink:#e7eae9; --ink2:#a8b2b8; --muted:#7d878e;
+    --rule:#2a3034; --rule-soft:#22282b;
+    --accent:#e8873a; --accent-tint:#33220f;
+    --blue:#6ba4ee; --blue-tint:#14243c;
+    --shadow:0 1px 2px rgba(0,0,0,.4),0 10px 28px -14px rgba(0,0,0,.7);
+  }
+}
+:root[data-theme="dark"]{
+  --ground:#121517; --surface:#181c1f; --sunk:#0e1113;
+  --ink:#e7eae9; --ink2:#a8b2b8; --muted:#7d878e;
+  --rule:#2a3034; --rule-soft:#22282b;
+  --accent:#e8873a; --accent-tint:#33220f;
+  --blue:#6ba4ee; --blue-tint:#14243c;
+  --shadow:0 1px 2px rgba(0,0,0,.4),0 10px 28px -14px rgba(0,0,0,.7);
+}
+
+*{box-sizing:border-box}
+body{
+  margin:0; background:var(--ground); color:var(--ink);
+  font-family:Newsreader,Georgia,"Times New Roman",serif;
+  font-size:17px; line-height:1.62; -webkit-font-smoothing:antialiased;
+}
+.mono{font-family:"IBM Plex Mono",ui-monospace,"SF Mono",Menlo,Consolas,monospace;font-variant-numeric:tabular-nums}
+h1,h2,h3,h4,.disp{font-family:Archivo,"Helvetica Neue",Arial,sans-serif;text-wrap:balance}
+
+.wrap{max-width:1140px;margin:0 auto;padding:0 28px 96px}
+
+/* ---------- masthead ---------- */
+.mast{border-bottom:2px solid var(--ink);padding:44px 0 18px;margin-bottom:0}
+.mast-top{display:flex;flex-wrap:wrap;align-items:flex-end;justify-content:space-between;gap:20px 32px}
+h1{
+  font-size:clamp(34px,6.2vw,62px);font-weight:700;letter-spacing:-.028em;
+  line-height:.98;margin:0;font-stretch:expanded;
+}
+h1 .sub{display:block;font-size:.30em;font-weight:500;letter-spacing:.16em;
+  text-transform:uppercase;color:var(--accent);margin-bottom:.7em;font-stretch:normal}
+.mast-meta{display:grid;grid-template-columns:auto auto;gap:2px 18px;font-size:12px;
+  letter-spacing:.04em;align-content:end}
+.mast-meta dt{color:var(--muted);text-transform:uppercase;font-size:10.5px;letter-spacing:.11em}
+.mast-meta dd{margin:0;color:var(--ink2)}
+.standfirst{max-width:66ch;margin:22px 0 0;font-size:19px;color:var(--ink2);line-height:1.58}
+
+/* ---------- provenance chips ---------- */
+.tag{display:inline-flex;align-items:center;gap:5px;font-family:"IBM Plex Mono",monospace;
+  font-size:9.5px;font-weight:600;letter-spacing:.09em;text-transform:uppercase;
+  padding:2px 6px;border-radius:2px;white-space:nowrap;vertical-align:1px;border:1px solid transparent}
+.tag::before{content:"";width:5px;height:5px;border-radius:50%;background:currentColor;flex:none}
+.tag.model{color:var(--blue);background:var(--blue-tint);border-color:color-mix(in srgb,var(--blue) 26%,transparent)}
+.tag.calc{color:var(--accent);background:var(--accent-tint);border-color:color-mix(in srgb,var(--accent) 26%,transparent)}
+.tag.ds{color:var(--ink2);background:var(--sunk);border-color:var(--rule)}
+.tag.est{color:var(--muted);background:transparent;border:1px dashed var(--rule);}
+.tag.est::before{background:transparent;border:1px solid currentColor}
+
+.legend-bar{display:flex;flex-wrap:wrap;gap:8px 20px;padding:14px 0;border-bottom:1px solid var(--rule);
+  font-family:"IBM Plex Mono",monospace;font-size:11px;color:var(--muted);align-items:center}
+.legend-bar span.lb{display:inline-flex;align-items:center;gap:7px}
+
+/* ---------- section index ---------- */
+.layout{display:grid;grid-template-columns:1fr;gap:0}
+@media(min-width:1000px){
+  .layout{grid-template-columns:168px minmax(0,1fr);gap:52px;align-items:start}
+  .index{position:sticky;top:24px;padding-top:44px}
+}
+.index{font-family:"IBM Plex Mono",monospace;font-size:11.5px;line-height:1.5}
+.index ol{list-style:none;margin:0;padding:0;display:flex;flex-wrap:wrap;gap:4px 14px}
+@media(min-width:1000px){.index ol{display:block}}
+.index li{margin-bottom:7px}
+.index a{color:var(--muted);text-decoration:none;display:flex;gap:8px;padding:1px 0;border-radius:2px}
+.index a:hover{color:var(--accent)}
+.index a:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.index .n{color:var(--rule);flex:none}
+@media(min-width:1000px){.index .n{color:var(--muted);opacity:.7}}
+
+/* ---------- sections ---------- */
+section{padding-top:44px;scroll-margin-top:20px}
+h2{font-size:13px;font-weight:600;letter-spacing:.15em;text-transform:uppercase;
+  margin:0 0 20px;padding-bottom:9px;border-bottom:1px solid var(--ink);
+  display:flex;align-items:baseline;gap:12px}
+h2 .num{color:var(--accent);font-family:"IBM Plex Mono",monospace;font-size:12px;letter-spacing:.02em}
+h3{font-size:16px;font-weight:600;letter-spacing:-.005em;margin:34px 0 12px;color:var(--ink)}
+h4{font-size:11px;font-weight:600;letter-spacing:.12em;text-transform:uppercase;
+  color:var(--muted);margin:26px 0 10px}
+p{margin:0 0 15px;max-width:70ch}
+p.lead{font-size:18px;color:var(--ink2)}
+ul,ol.body{margin:0 0 16px;padding-left:20px;max-width:70ch}
+li{margin-bottom:7px}
+strong{font-weight:600}
+em.term{font-style:normal;font-family:"IBM Plex Mono",monospace;font-size:.88em;
+  background:var(--sunk);padding:1px 5px;border-radius:2px;color:var(--ink)}
+a.ext{color:var(--accent);text-decoration:none;border-bottom:1px solid color-mix(in srgb,var(--accent) 35%,transparent)}
+a.ext:hover{border-bottom-color:var(--accent)}
+
+/* ---------- tables ---------- */
+.tw{overflow-x:auto;margin:0 0 20px;border:1px solid var(--rule);border-radius:3px;background:var(--surface)}
+table{border-collapse:collapse;width:100%;min-width:520px;font-size:13.5px}
+caption{caption-side:top;text-align:left;font-family:"IBM Plex Mono",monospace;font-size:10.5px;
+  letter-spacing:.1em;text-transform:uppercase;color:var(--muted);padding:11px 14px 0}
+th,td{padding:8px 14px;text-align:left;border-bottom:1px solid var(--rule-soft);vertical-align:top}
+thead th{font-family:Archivo,sans-serif;font-size:10.5px;font-weight:600;letter-spacing:.1em;
+  text-transform:uppercase;color:var(--muted);border-bottom:1px solid var(--rule);
+  background:var(--sunk);position:sticky;top:0}
+tbody tr:last-child td{border-bottom:none}
+td.v,th.v{font-family:"IBM Plex Mono",monospace;font-variant-numeric:tabular-nums;
+  white-space:nowrap;font-weight:500;color:var(--ink)}
+td.n{color:var(--ink2);font-size:12.5px;line-height:1.5}
+tr.tot td{border-top:1px solid var(--ink);background:var(--sunk);font-weight:600}
+tr.tot td.v{color:var(--accent)}
+
+/* ---------- stat row ---------- */
+.stats{display:grid;gap:1px;background:var(--rule);border:1px solid var(--rule);
+  border-radius:3px;overflow:hidden;grid-template-columns:1fr;margin:0 0 22px}
+@media(min-width:600px){.stats{grid-template-columns:repeat(2,1fr)}}
+@media(min-width:900px){.stats.s4{grid-template-columns:repeat(4,1fr)}
+  .stats.s3{grid-template-columns:repeat(3,1fr)}}
+.stat{background:var(--surface);padding:16px 16px 15px}
+.stat .k{font-family:"IBM Plex Mono",monospace;font-size:9.5px;letter-spacing:.11em;
+  text-transform:uppercase;color:var(--muted);display:block;margin-bottom:7px}
+.stat .val{font-family:Archivo,sans-serif;font-size:29px;font-weight:600;letter-spacing:-.02em;
+  line-height:1;color:var(--ink);font-variant-numeric:tabular-nums}
+.stat .val .u{font-size:14px;font-weight:500;color:var(--muted);margin-left:3px;letter-spacing:0}
+.stat .sub{font-size:12px;color:var(--ink2);margin-top:7px;line-height:1.45;font-family:Newsreader,serif}
+
+/* ---------- callout ---------- */
+.note{border-left:2px solid var(--accent);background:var(--surface);padding:14px 18px;
+  margin:0 0 20px;border-radius:0 3px 3px 0;box-shadow:var(--shadow)}
+.note p{margin:0;font-size:15px;color:var(--ink2);max-width:68ch}
+.note p+p{margin-top:10px}
+.note .nh{font-family:Archivo,sans-serif;font-size:10.5px;font-weight:600;letter-spacing:.12em;
+  text-transform:uppercase;color:var(--accent);display:block;margin-bottom:7px}
+
+footer{margin-top:64px;padding-top:20px;border-top:2px solid var(--ink);
+  font-family:"IBM Plex Mono",monospace;font-size:11px;color:var(--muted);
+  display:flex;flex-wrap:wrap;gap:8px 28px;justify-content:space-between}
+</style>
+</head>
+<body>
+
+<div class="wrap">
+
+<header class="mast">
+  <div class="mast-top">
+    <h1><span class="sub">System Architecture & Flow</span>SleekCare AI<br>Voice&nbsp;Prescription</h1>
+    <dl class="mast-meta mono">
+      <dt>Version</dt><dd>1.0</dd>
+      <dt>Hardware</dt><dd>Mic Pod v3 Integration</dd>
+      <dt>Target DB</dt><dd>Proprietary Indian Drugs (PostgreSQL)</dd>
+      <dt>Status</dt><dd>Production Architecture</dd>
+    </dl>
+  </div>
+  <p class="standfirst">An end-to-end intelligent medical transcription and prescription generation system tailored for the Indian healthcare market. It captures ambient clinical dialogue via bespoke dual-facing acoustic hardware, processes speech through real-time Indian-accent optimized ASR, extracts medical entities using specialized medical LLMs, and maps colloquial pharmaceutical data against a custom comprehensive drugs database using in-memory phonetic heuristics.</p>
+</header>
+
+<div class="legend-bar mono">
+  <span class="lb"><span class="tag model">AI</span> Machine Learning & Models</span>
+  <span class="lb"><span class="tag ds">Data</span> Database & Standardization</span>
+  <span class="lb"><span class="tag calc">Flow</span> System Pipeline Step</span>
+  <span class="lb"><span class="tag est">HW</span> Hardware Layer</span>
+</div>
+
+<div class="layout">
+
+<nav class="index" aria-label="Section index">
+  <ol>
+    <li><a href="#s1"><span class="n">01</span> At a glance</a></li>
+    <li><a href="#s2"><span class="n">02</span> Tech Stack</a></li>
+    <li><a href="#s3"><span class="n">03</span> HW: Mic Pod V3</a></li>
+    <li><a href="#s4"><span class="n">04</span> Capture & Encoding</a></li>
+    <li><a href="#s5"><span class="n">05</span> ASR Transcription</a></li>
+    <li><a href="#s6"><span class="n">06</span> LLM Extraction</a></li>
+    <li><a href="#s7"><span class="n">07</span> Database Mapping</a></li>
+    <li><a href="#s8"><span class="n">08</span> Output Generation</a></li>
+  </ol>
+</nav>
+
+<main>
+
+<!-- ================= 1 ================= -->
+<section id="s1">
+  <h2><span class="num">01</span> At a glance</h2>
+
+  <div class="stats s4">
+    <div class="stat"><span class="k">Transcription Speed</span>
+      <span class="val">RT<span class="u"></span></span>
+      <span class="sub">Serverless streaming via Parrotlet (Modal)</span></div>
+    <div class="stat"><span class="k">Medical Entity LLM</span>
+      <span class="val">4B<span class="u">IT</span></span>
+      <span class="sub">Powered by MedGemma via dr7.ai</span></div>
+    <div class="stat"><span class="k">Matching Latency</span>
+      <span class="val">O(1)<span class="u"></span></span>
+      <span class="sub">Lightning-fast in-memory phonetic RAM Cache</span></div>
+    <div class="stat"><span class="k">Medical Database</span>
+      <span class="val">1mg<span class="u"></span></span>
+      <span class="sub">Comprehensive scraped Indian drug index in Postgres</span></div>
+  </div>
+</section>
+
+<!-- ================= 2 ================= -->
+<section id="s2">
+  <h2><span class="num">02</span> Tech Stack</h2>
+  <p class="lead">A precise breakdown of the technologies and frameworks powering the SleekCare pipeline, optimized for speed and accuracy in the Indian medical ecosystem.</p>
+  
+  <div class="tw">
+    <table>
+      <caption>Core Technology Choices</caption>
+      <thead><tr><th>Component</th><th class="v">Technology Used</th><th>Category</th></tr></thead>
+      <tbody>
+        <tr><td>Frontend Web App</td><td class="v">Next.js 16 (React 19) + Tailwind CSS</td><td><span class="tag calc">Flow</span></td></tr>
+        <tr><td>Backend API</td><td class="v">Node.js (Express, TypeScript)</td><td><span class="tag calc">Flow</span></td></tr>
+        <tr><td>Speech-to-Text (ASR)</td><td class="v">Parrotlet / Whisper (Serverless via Modal)</td><td><span class="tag model">AI</span></td></tr>
+        <tr><td>Entity Extraction (LLM)</td><td class="v">MedGemma (medgemma-4b-it) via dr7.ai</td><td><span class="tag model">AI</span></td></tr>
+        <tr><td>Medical Database</td><td class="v">PostgreSQL (Scraped 1mg Indian Drugs)</td><td><span class="tag ds">Data</span></td></tr>
+        <tr><td>Matching Engine</td><td class="v">Double Metaphone + Levenshtein (RAM Cache)</td><td><span class="tag ds">Data</span></td></tr>
+        <tr><td>Hardware MCU</td><td class="v">Seeed XIAO nRF52840</td><td><span class="tag est">HW</span></td></tr>
+        <tr><td>Audio Codec</td><td class="v">Raw 16kHz PCM (via fluent-ffmpeg)</td><td><span class="tag est">HW</span></td></tr>
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<!-- ================= 3 ================= -->
+<section id="s3">
+  <h2><span class="num">03</span> HW: Mic Pod V3</h2>
+  <p>The entire data pipeline begins in the physical world with the <strong>Dual-Facing Mic Pod v3</strong>. Rather than relying on generic mobile phone microphones, the system uses custom acoustic hardware engineered specifically for the clinical environment.</p>
+  
+  <div class="note">
+    <span class="nh">Hardware Highlights</span>
+    <p>The capsule features two <strong>INMP441 I²S MEMS</strong> microphones placed back-to-back, establishing a 1.8m usable pickup radius per end. It boasts 75 hours of battery life from a 250 mAh LiPo cell and caches audio locally onto a 16GB MicroSD card. A central tactile button allows for immediate, hardware-level muting to ensure patient privacy.</p>
+  </div>
+</section>
+
+<!-- ================= 4 ================= -->
+<section id="s4">
+  <h2><span class="num">04</span> Step 1: Capture & Encoding</h2>
+  <p>During the patient consultation, the physician speaks naturally. The Mic Pod's on-board Seeed XIAO nRF52840 microcontroller captures the dialogue. Once offloaded to the Node.js backend, the system utilizes <code>fluent-ffmpeg</code> to transcode the audio payload strictly into a raw PCM format (s16le, 1 channel, 16000 Hz) to meet the strict requirements of downstream acoustic models.</p>
+</section>
+
+<!-- ================= 5 ================= -->
+<section id="s5">
+  <h2><span class="num">05</span> Step 2: ASR Transcription</h2>
+  <p>The normalized audio stream is routed to our highly scalable Serverless ASR infrastructure, hosted on <strong>Modal</strong>. Specifically, the system utilizes a custom Whisper-based acoustic model named <strong>Parrotlet</strong>.</p>
+  <p>The Express backend establishes a streaming connection using Server-Sent Events (SSE) to push transcription progress instantly back to the clinician's dashboard. Parrotlet accurately transcribes complex pharmacological terminology even in noisy consult environments, returning the final unified text string for downstream processing.</p>
+</section>
+
+<!-- ================= 6 ================= -->
+<section id="s6">
+  <h2><span class="num">06</span> Step 3: LLM Extraction</h2>
+  <p>The raw transcript contains noisy clinical conversation. The system passes this transcript to <strong>MedGemma (medgemma-4b-it)</strong> via the dr7.ai API. Unlike generic LLMs, MedGemma is prompted strictly as an NER (Named Entity Recognition) engine.</p>
+  
+  <div class="note">
+    <span class="nh">Entity Targeting</span>
+    <p>The MedGemma model isolates exact spoken parameters without hallucinating database corrections: <em class="term">spoken_name</em>, <em class="term">strength</em>, <em class="term">dose</em>, <em class="term">route</em>, <em class="term">frequency</em>, <em class="term">duration</em>, and <em class="term">instructions</em>. It parses compact doctor shorthand (e.g., "rhefdod" is split into medicine "rhefd" and frequency "OD") and outputs a preliminary JSON array.</p>
+  </div>
+</section>
+
+<!-- ================= 7 ================= -->
+<section id="s7">
+  <h2><span class="num">07</span> Step 4: Database Mapping</h2>
+  <p>To ensure clinical safety and prevent spelling errors, the extracted drugs are mapped against a massive, localized PostgreSQL database (scraped from platforms like 1mg). To achieve zero-latency matching without an expensive Vector DB, the system loads the entire drug library into an <strong>O(1) Memory RAM Cache</strong> at startup.</p>
+  <ul class="body">
+    <li><strong>Hybrid Matching:</strong> The engine utilizes the <code>double-metaphone</code> algorithm to bucket drugs by phonetic sound, combined with a <code>fastest-levenshtein</code> (Sørensen-Dice style) string distance calculation.</li>
+    <li><strong>Clinical Heuristics:</strong> The scoring engine heavily penalizes matches that have conflicting dosage forms (e.g., Syrup vs Tablet) or mismatched product qualifiers (e.g., GP1 vs GP2, SR vs XR).</li>
+    <li><strong>Output:</strong> Each extracted drug is appended with a <code>top_phonetic</code> and <code>top_fuzzy</code> list of the safest, exact-match pharmaceutical brand names.</li>
+  </ul>
+</section>
+
+<!-- ================= 8 ================= -->
+<section id="s8">
+  <h2><span class="num">08</span> Step 5: Output Generation</h2>
+  <p>In the final phase, the Node.js backend issues a second call to <strong>MedGemma</strong>. The LLM acts as a Clinical Pharmacist, reviewing the original transcript alongside the mathematically ranked phonetic/fuzzy candidates.</p>
+  <p>MedGemma selects the most accurate database brand name, aggregates patient vitals/history, and outputs a highly structured clinical JSON payload. This payload is injected into an HTML <code>prescription_template.html</code> and sent back to the Next.js frontend, presenting the doctor with a flawless, print-ready digital prescription.</p>
+</section>
+
+</main>
+</div>
+
+<footer>
+  <span>SleekCare AI Systems</span>
+  <span>Proprietary and Confidential</span>
+</footer>
+
+</div>
+</body>
+</html>

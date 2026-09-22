@@ -69,11 +69,11 @@ export default function AppointmentConfirmedPage() {
                 <img src={patient.photo} alt={patient.name} className="w-12 h-12 rounded-full object-cover border border-surface-container shadow-sm" />
                 <div>
                   <h2 className="text-[16px] font-bold text-text-ink">{patient.name}</h2>
-                  <span className="text-[12px] font-medium text-text-muted">{patient.uhid} • {patient.age}</span>
+                  <span className="text-[12px] font-medium text-text-muted">{patient.uhid} - {patient.age}</span>
                 </div>
               </div>
               <span className="px-3 py-1 rounded-full bg-warning-bg text-clinical-warning text-[12px] font-bold shadow-sm border border-clinical-warning/20">
-                Scheduled • Awaiting Check-in
+                Scheduled - Awaiting Check-in
               </span>
             </div>
 

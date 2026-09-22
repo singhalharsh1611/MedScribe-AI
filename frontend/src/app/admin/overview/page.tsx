@@ -67,7 +67,7 @@ export default function AdminOverviewPage() {
         {[
           { label: "Total Patients", value: stats.total_patients ?? "—", icon: "people", color: "bg-primary-fixed text-primary" },
           { label: "Today's Appointments", value: stats.today_appointments ?? "—", icon: "calendar_today", color: "bg-secondary-fixed text-secondary" },
-          { label: "Clinic Doctors", value: stats.total_doctors ?? "—", icon: "stethoscope", color: "bg-tertiary-fixed text-tertiary" },
+          { label: "Clinic Users", value: stats.total_doctors ?? "—", icon: "stethoscope", color: "bg-tertiary-fixed text-tertiary" },
           { label: "Waiting Queue", value: stats.waiting_queue ?? "—", icon: "queue", color: "bg-warning-bg text-clinical-warning" },
         ].map(s => (
           <div key={s.label} className="bg-card-surface rounded-xl p-4 border border-surface-container shadow-sm">

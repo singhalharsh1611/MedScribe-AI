@@ -112,13 +112,16 @@
     font-family: 'Montserrat', sans-serif;
     overscroll-behavior: none;
   }
-  ::-webkit-scrollbar { display: none; }
+  ::-webkit-scrollbar { width: 10px; height: 10px; }
+  ::-webkit-scrollbar-thumb { background: var(--color-outline); border-radius: 999px; border: 2px solid transparent; background-clip: padding-box; }
+  ::-webkit-scrollbar-track { background: transparent; }
   * { box-sizing: border-box; }
 
   .dark {
     --color-background: #0b0d14;
     --color-on-background: #e2e8f0;
     --color-surface: #0b0d14;
+    --color-app-bg: #07090e;
     --color-surface-container-lowest: #05060a;
     --color-surface-container-low: #11141d;
     --color-surface-container: #161a26;
@@ -171,6 +174,13 @@
   .animate-blob-3       { animation: blob-3 22s infinite ease-in-out; will-change: transform; }
   .animate-glide-in     { animation: glide-in 0.6s cubic-bezier(0.34, 1.56, 0.64, 1) forwards; }
   .animate-float-up     { animation: float-up 0.6s cubic-bezier(0.16, 1, 0.3, 1) forwards; }
+}
+
+/* Chromium/Edge adds a reveal control inside password inputs. It obscures
+   single-character PIN boxes, which already reveal focus and position. */
+input[type="password"]::-ms-reveal,
+input[type="password"]::-ms-clear {
+  display: none;
 }
 
 /* ── Keyframes — must be at top level, NOT inside @layer ───── */

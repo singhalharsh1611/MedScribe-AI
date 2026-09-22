@@ -55,12 +55,6 @@ export default function JoinRequestsPage() {
 
   return (
     <div className="min-h-screen bg-app-bg">
-      <header className="bg-card-surface border-b border-surface-container px-6 py-4 flex items-center gap-4">
-        <Link href="/admin/overview" className="text-text-muted hover:text-primary transition-colors">
-          <span className="material-symbols-outlined">arrow_back</span>
-        </Link>
-        <h1 className="text-[16px] font-bold text-text-ink">Join Requests</h1>
-      </header>
 
       {toast && (
         <div className="fixed top-4 right-4 z-50 bg-card-surface border border-outline-variant rounded-xl px-4 py-3 shadow-xl flex items-center gap-2 animate-glide-in">

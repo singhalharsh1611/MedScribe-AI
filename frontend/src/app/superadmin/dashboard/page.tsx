@@ -1,7 +1,7 @@
 "use client";
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { api, getSuperAdmin } from "@/lib/api";
+import { api, clearUser, getSuperAdmin } from "@/lib/api";
 import { useTheme } from "next-themes";
 
 export default function SuperAdminDashboard() {
@@ -89,7 +89,7 @@ export default function SuperAdminDashboard() {
             </span>
             <span className="hidden sm:inline">Theme</span>
           </button>
-          <button onClick={() => { localStorage.removeItem("superAdmin"); router.push("/superadmin"); }}
+          <button onClick={() => { clearUser(); router.replace("/superadmin"); router.refresh(); }}
             className="flex items-center gap-2 text-[13px] text-text-muted hover:text-clinical-error transition-colors">
             <span className="material-symbols-outlined text-[18px]">logout</span>
             <span className="hidden sm:inline">Logout</span>

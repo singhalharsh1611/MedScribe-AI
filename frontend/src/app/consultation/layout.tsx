@@ -1,17 +1,22 @@
 import { ReactNode } from "react";
 import DoctorHeader from "@/components/doctor/DoctorHeader";
-import ConsultationSidebar from "@/components/consultation/ConsultationSidebar";
+import DoctorSidebar from "@/components/doctor/DoctorSidebar";
+import MobileSectionNav from "@/components/shared/MobileSectionNav";
+import RoleGuard from "@/components/auth/RoleGuard";
 
 export default function ConsultationLayout({ children }: { children: ReactNode }) {
   return (
+    <RoleGuard allowedRoles={["doctor", "admin"]}>
     <div className="min-h-screen bg-app-bg text-on-surface">
-      <ConsultationSidebar />
-      <div className="pl-64">
-        <DoctorHeader />
-        <main className="w-full pt-16 min-h-screen px-margin-desktop py-space-lg">
+      <DoctorHeader />
+      <DoctorSidebar />
+      <MobileSectionNav items={[{href:"/doctor/dashboard",label:"Dashboard"},{href:"/consultation/voice/listening",label:"Current consultation"},{href:"/doctor/patients",label:"Patients"}]} />
+      <div className="min-h-screen flex flex-col lg:pl-72">
+        <main className="w-full flex-1 px-4 pb-space-lg pt-24 sm:px-6 lg:px-margin-desktop lg:pt-16">
           {children}
         </main>
       </div>
     </div>
+    </RoleGuard>
   );
 }

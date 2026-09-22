@@ -1,6 +1,14 @@
 import { Router } from 'express';
 import pool from '../services/db.service';
 import crypto from 'crypto';
+import {
+  authRateLimit,
+  createSessionToken,
+  requireAuth,
+  requireRole,
+  setSessionCookie,
+} from '../middleware/auth.middleware';
+import { sendServerError } from '../utils/http-error';
 
 const router = Router();
 
@@ -11,26 +19,41 @@ const hashPw = (pw: string, salt = crypto.randomBytes(16).toString('hex')) => {
 const verifyPw = (pw: string, stored: string) => {
   if (!stored?.includes(':')) return pw === stored;
   const [salt, key] = stored.split(':');
-  return crypto.scryptSync(pw, salt, 64).toString('hex') === key;
+  const actual = Buffer.from(crypto.scryptSync(pw, salt, 64).toString('hex'));
+  const expected = Buffer.from(key);
+  return actual.length === expected.length && crypto.timingSafeEqual(actual, expected);
 };
 
 // Super admin login
-router.post('/login', async (req, res) => {
+router.post('/login', authRateLimit, async (req, res) => {
   try {
     const { username, password } = req.body;
-    const r = await pool.query('SELECT * FROM super_admins WHERE username=$1', [username]);
+    const r = await pool.query(
+      'SELECT id, username, password_hash FROM super_admins WHERE username=$1',
+      [username]
+    );
     if (!r.rows.length) return res.status(401).json({ error: 'Invalid credentials' });
     const admin = r.rows[0];
     if (!verifyPw(password, admin.password_hash)) return res.status(401).json({ error: 'Invalid credentials' });
+    setSessionCookie(res, createSessionToken({
+      id: Number(admin.id),
+      role: 'superadmin',
+      clinicId: null,
+      kind: 'superadmin',
+    }));
     res.json({ admin: { id: admin.id, username: admin.username } });
-  } catch (e: any) { res.status(500).json({ error: e.message }); }
+  } catch (error) { sendServerError(res, 'SUPERADMIN_LOGIN_FAILED', 'Unable to sign in.', error); }
 });
+
+router.use(requireAuth, requireRole('superadmin'));
 
 // List all doctors pending verification
 router.get('/doctors', async (req, res) => {
   try {
     const { status } = req.query;
-    let q = `SELECT u.*, c.name as clinic_name FROM users u
+    let q = `SELECT u.id, u.name, u.phone, u.email, u.specialty, u.npi, u.role,
+                    u.clinic_id, u.verification_status, u.status, u.created_at,
+                    c.name as clinic_name FROM users u
              LEFT JOIN clinics c ON c.id = u.clinic_id
              WHERE u.role IN ('doctor','admin')`;
     const params: any[] = [];
@@ -38,7 +61,7 @@ router.get('/doctors', async (req, res) => {
     q += ' ORDER BY u.created_at DESC';
     const r = await pool.query(q, params);
     res.json({ doctors: r.rows });
-  } catch (e: any) { res.status(500).json({ error: e.message }); }
+  } catch (error) { sendServerError(res, 'SUPERADMIN_USERS_READ_FAILED', 'Unable to load users.', error); }
 });
 
 // Approve or reject a doctor
@@ -46,6 +69,9 @@ router.patch('/doctors/:id/verify', async (req, res) => {
   try {
     const { id } = req.params;
     const { action } = req.body; // 'approve' | 'reject'
+    if (action !== 'approve' && action !== 'reject') {
+      return res.status(400).json({ error: 'Action must be approve or reject' });
+    }
     const status = action === 'approve' ? 'approved' : 'rejected';
     const r = await pool.query(
       `UPDATE users SET verification_status=$1 WHERE id=$2 RETURNING id, name, verification_status`,
@@ -53,7 +79,7 @@ router.patch('/doctors/:id/verify', async (req, res) => {
     );
     if (!r.rows.length) return res.status(404).json({ error: 'Doctor not found' });
     res.json({ doctor: r.rows[0] });
-  } catch (e: any) { res.status(500).json({ error: e.message }); }
+  } catch (error) { sendServerError(res, 'SUPERADMIN_VERIFICATION_FAILED', 'Unable to update verification.', error); }
 });
 
 // List all clinics
@@ -65,7 +91,7 @@ router.get('/clinics', async (req, res) => {
       GROUP BY c.id ORDER BY c.created_at DESC
     `);
     res.json({ clinics: r.rows });
-  } catch (e: any) { res.status(500).json({ error: e.message }); }
+  } catch (error) { sendServerError(res, 'SUPERADMIN_CLINICS_READ_FAILED', 'Unable to load clinics.', error); }
 });
 
 // Platform stats
@@ -83,7 +109,7 @@ router.get('/stats', async (req, res) => {
       total_patients: parseInt(patients.rows[0].count),
       pending_verifications: parseInt(pending.rows[0].count),
     });
-  } catch (e: any) { res.status(500).json({ error: e.message }); }
+  } catch (error) { sendServerError(res, 'SUPERADMIN_STATS_READ_FAILED', 'Unable to load platform statistics.', error); }
 });
 
 export default router;

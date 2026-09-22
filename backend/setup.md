@@ -36,6 +36,15 @@ We migrated the massive 135MB SQLite database of 386,000+ Indian drugs into a fu
 This means you no longer need to scrape 1mg yourself or store massive `.sqlite` files in the repository. 
 The backend connects directly to Neon.
 
+Build the additive medication search index after importing or changing drug names:
+
+```bash
+cd backend
+npm run migrate:drug-search
+```
+
+This creates and refreshes `drug_search_index` and `drug_aliases`. It does not rewrite the source `drugs` rows.
+
 ### The 1mg Scraper
 If you ever need to update the database, the scraper is located in `backend/1mgDrugsScraper/scrape.ts`.
 It connects directly to the Neon PostgreSQL `DATABASE_URL` and runs highly concurrent (50 parallel workers) requests to fetch the master sitemap and scrape the salt compositions from SEO meta tags.
@@ -66,16 +75,16 @@ Because voice transcripts are messy (e.g., *"take rebeca twenty milligram twice 
 * **What happens:** We send the transcript to **MedGemma** via the Dr7 API. MedGemma is prompted strictly for Named Entity Recognition (NER).
 * **Output:** It returns a clean JSON array of suspected names exactly as they were misspelled.
 
-### Step 2: Phonetic Mapping
+### Step 2: Constrained Database Mapping
 Now we must map those misspelled words to real Indian drugs using our cloud database.
 * **Endpoint:** `POST /api/prescription/map`
 * **Input:** `{ "extractedDrugs": ["rebeca"] }`
-* **What happens:** The server dynamically calculates the Double Metaphone phonetic code of the misspelled word and executes lightning-fast O(1) hash lookups against the 386,000 drugs loaded into RAM from PostgreSQL. It supplements this with Levenshtein distance matching.
-* **Output:** It returns the top Phonetic matches and top Fuzzy matches.
+* **What happens:** Exact, compact, token-phonetic, and fuzzy retrieval build a broad candidate pool. Dosage form, qualifiers, release type, and ordered visible strengths then reject incompatible products and rank the remaining candidates.
+* **Output:** It returns structured candidates with evidence, conflicts, confidence, and one of `matched`, `needs_review`, or `no_match`.
 
 ### Step 3: Final Prescription Generation
 * **Endpoint:** `POST /api/prescription/generate`
-* **What happens:** MedGemma takes the original transcript AND the mapped candidate list, fixes the spelling errors using clinical context, and generates a perfectly formatted standard medical prescription in beautiful HTML.
+* **What happens:** MedGemma receives only the constrained database candidates and returns a candidate ID. Backend validation rejects IDs outside the candidate list and leaves ambiguous medicines unresolved for clinician review.
 
 ### Step 4: Saving to History
 * **Endpoint:** `POST /api/prescription/save`

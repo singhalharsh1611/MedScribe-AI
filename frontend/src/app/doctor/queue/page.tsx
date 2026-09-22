@@ -16,8 +16,25 @@ export default function DoctorQueuePage() {
     const u = getUser();
     if (!u) { router.push("/login"); return; }
     setUser(u);
-    if (u.clinic_id) loadQueue(u.clinic_id, u.id);
-    else setLoading(false);
+    
+    if (u.clinic_id) {
+      loadQueue(u.clinic_id, u.id);
+      
+      const API_URL = process.env.NEXT_PUBLIC_API_URL || "/api";
+      const es = new EventSource(
+        `${API_URL}/queue/stream?clinic_id=${u.clinic_id}&doctor_id=${u.id}`,
+        { withCredentials: true }
+      );
+      es.onmessage = (event) => {
+        try {
+          setQueue(JSON.parse(event.data) || []);
+        } catch (e) {}
+      };
+      
+      return () => es.close();
+    } else {
+      setLoading(false);
+    }
   }, []);
 
   const loadQueue = async (clinicId: number, doctorId: number) => {
@@ -54,15 +71,12 @@ export default function DoctorQueuePage() {
 
   return (
     <div className="min-h-screen bg-app-bg">
-      <header className="bg-card-surface border-b border-surface-container px-6 py-4 flex items-center justify-between">
+      <header className="px-6 py-4 flex items-center justify-between">
         <div className="flex items-center gap-3">
-          <Link href="/doctor/dashboard" className="text-text-muted hover:text-primary transition-colors">
-            <span className="material-symbols-outlined text-[20px]">arrow_back</span>
-          </Link>
-          <h1 className="text-[16px] font-bold text-text-ink">Patient Queue</h1>
+
         </div>
         <button onClick={() => user && loadQueue(user.clinic_id, user.id)}
-          className="flex items-center gap-1 text-[13px] text-primary font-semibold hover:underline">
+          className="flex items-center gap-2 text-[13px] font-bold text-white px-4 py-2 rounded-lg bg-primary hover:bg-accent-dark active:scale-95 transition-all shadow-sm cursor-pointer no-underline focus:outline-none">
           <span className="material-symbols-outlined text-[16px]">refresh</span>Refresh
         </button>
       </header>
@@ -88,7 +102,7 @@ export default function DoctorQueuePage() {
             {queue.map((entry: any, i: number) => (
               <div key={entry.id}
                 className="bg-card-surface rounded-xl border border-surface-container p-4 flex items-center gap-4 hover:shadow-md transition-all">
-                <div className="w-10 h-10 rounded-full bg-primary-fixed flex items-center justify-center font-bold text-primary shrink-0">
+                <div className="min-w-[48px] h-10 px-3 rounded-lg bg-primary-fixed flex items-center justify-center font-bold text-primary shrink-0 text-[13px]">
                   {entry.token || `T-${i + 101}`}
                 </div>
                 <div className="flex-1 min-w-0">

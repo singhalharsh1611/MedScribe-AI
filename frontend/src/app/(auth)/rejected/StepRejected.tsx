@@ -1,7 +1,27 @@
 "use client";
-
+import { useEffect, useState } from "react";
+import { api, getUser } from "@/lib/api";
 
 export default function RejectedPage({ onNext }: { onNext: (step: string, data?: any) => void }) {
+  const [clinicName, setClinicName] = useState<string>("the clinic");
+  const [verificationStatus, setVerificationStatus] = useState<string>("pending");
+
+  useEffect(() => {
+    const user = getUser();
+    if (user) {
+      setVerificationStatus(user.verification_status || "pending");
+      if (user.verification_status !== "rejected") {
+        api.joinRequests.myRequest(user.id).then(({ request }) => {
+          if (request && request.clinic_name) {
+            setClinicName(request.clinic_name);
+          }
+        }).catch(() => {});
+      }
+    }
+  }, []);
+
+  const isPlatformRejected = verificationStatus === "rejected";
+
   return (
     <div className="relative w-full min-h-[calc(100vh-8rem)] flex items-center justify-center px-4 md:px-margin-desktop py-space-xl overflow-hidden">
       <div className="absolute -top-24 left-1/2 -translate-x-1/2 w-[640px] h-[300px] bg-gradient-to-b from-clinical-error/10 via-error-bg/20 to-transparent rounded-full blur-3xl pointer-events-none"></div>
@@ -23,29 +43,52 @@ export default function RejectedPage({ onNext }: { onNext: (step: string, data?:
           </div>
           <h1 className="text-[36px] font-bold text-text-ink tracking-tight">Request rejected</h1>
           <p className="text-[16px] text-on-surface-variant max-w-md mx-auto leading-relaxed">
-            Your join request for <strong>St. Jude Medical Center</strong> was not approved. This may be due to incomplete credentials or insufficient departmental authorization.
+            {isPlatformRejected ? (
+              <>Your registration request for the <strong>SleekCare Platform</strong> was not approved by the Platform Administration. Please contact support if you believe this is an error.</>
+            ) : (
+              <>Your join request for <strong>{clinicName}</strong> was not approved. This may be due to incomplete credentials or insufficient departmental authorization.</>
+            )}
           </p>
         </div>
 
         <div className="w-full bg-card-surface rounded-xl p-space-lg shadow-md flex flex-col gap-space-md text-left">
           <p className="text-[14px] font-semibold text-text-ink">Possible reasons for rejection:</p>
-          <div className="space-y-space-xs">
-            {["NPI credentials could not be verified against the state registry", "You are not listed on the hospital privilege roster", "An administrator manually declined the request", "Duplicate affiliation request already pending"].map((r) => (
-              <div key={r} className="flex items-start gap-space-xs text-[13px] text-on-surface-variant">
-                <span className="material-symbols-outlined text-clinical-error text-[18px] mt-0.5 shrink-0">error</span>
-                <span>{r}</span>
-              </div>
-            ))}
+          <div className="space-y-space-sm">
+            {isPlatformRejected ? (
+              ["State Medical License could not be verified", "NPI number is inactive or invalid", "Identity verification failed", "Your specialty requires manual onboarding"].map((r) => (
+                <div key={r} className="flex items-center gap-space-xs text-[13px] text-on-surface-variant">
+                  <span className="material-symbols-outlined text-clinical-error text-[18px] shrink-0">error</span>
+                  <span>{r}</span>
+                </div>
+              ))
+            ) : (
+              ["NPI credentials could not be verified against the state registry", "You are not listed on the hospital privilege roster", "An administrator manually declined the request", "Duplicate affiliation request already pending"].map((r) => (
+                <div key={r} className="flex items-center gap-space-xs text-[13px] text-on-surface-variant">
+                  <span className="material-symbols-outlined text-clinical-error text-[18px] shrink-0">error</span>
+                  <span>{r}</span>
+                </div>
+              ))
+            )}
           </div>
         </div>
 
         <div className="flex flex-col sm:flex-row items-center gap-space-md w-full">
-          <button type="button" onClick={() => onNext('find-clinic')} className="w-full sm:flex-1 inline-flex items-center justify-center gap-space-xs px-space-xl py-space-md rounded-lg bg-primary hover:bg-accent-dark text-card-surface font-bold text-[18px] shadow-lg transition-all no-underline">
-            <span>Try Another Clinic</span>
-            <span className="material-symbols-outlined text-[20px]">search</span>
-          </button>
-          <button type="button" onClick={() => onNext('login')} className="w-full sm:flex-1 inline-flex items-center justify-center gap-space-xs px-space-xl py-space-md rounded-lg bg-surface-container hover:bg-surface-container-high text-text-ink font-bold text-[15px] transition-all no-underline">
-            <span>Back to Login</span>
+          {!isPlatformRejected && (
+            <button type="button" onClick={() => onNext('find_clinic')} className="w-full sm:flex-1 inline-flex items-center justify-center gap-space-xs px-space-xl py-space-md rounded-lg bg-primary hover:bg-accent-dark text-card-surface font-bold text-[18px] shadow-lg transition-all no-underline">
+              <span>Try Another Clinic</span>
+              <span className="material-symbols-outlined text-[20px]">search</span>
+            </button>
+          )}
+          <button type="button" onClick={() => {
+            localStorage.clear();
+            sessionStorage.clear();
+            if (isPlatformRejected) {
+              window.location.href = '/register';
+            } else {
+              onNext('login');
+            }
+          }} className="w-full sm:flex-1 inline-flex items-center justify-center gap-space-xs px-space-xl py-space-md rounded-lg bg-surface-container hover:bg-surface-container-high text-text-ink font-bold text-[15px] transition-all no-underline">
+            <span>{isPlatformRejected ? 'Restart Registration' : 'Back to Login'}</span>
           </button>
         </div>
       </div>

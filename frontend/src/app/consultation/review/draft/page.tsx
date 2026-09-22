@@ -1,104 +1,439 @@
 "use client";
-import { useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { useRouter } from "next/navigation";
-import Image from "next/image";
+import { api, clearConsultationState } from "@/lib/api";
+
+const STEPS = ["Live Dictation", "Transcript Review", "AI Processing", "Extraction", "Draft Order"];
+
+const STATIC_MEDICATIONS = [
+  {
+    id: 1,
+    name: "Albuterol HFA 90mcg",
+    sub: "• Inhalation Aerosol",
+    category: "Bronchodilator",
+    verified: "DB Verified",
+    dose: "2 puffs",
+    frequency: "Every 4-6 hours PRN",
+    timing: "As needed",
+    timingIcon: "schedule",
+    timingColor: "text-primary",
+    food: "Inhalation",
+    duration: "30 Days",
+    instructions: "Inhale 2 puffs every 4 to 6 hours as needed for wheezing.",
+    timestamp: "04:32",
+    quote: "Recommending Albuterol HFA 90mcg 2 puffs every 4 to 6 hours as needed.",
+    debugPhonetic: [],
+    debugFuzzy: [],
+    originalExtracted: "Albuterol HFA",
+  },
+  {
+    id: 2,
+    name: "Montelukast 10mg",
+    sub: "• Oral Tablet",
+    category: "Leukotriene Inhibitor",
+    verified: "DB Verified",
+    dose: "1 tablet",
+    frequency: "Once daily",
+    timing: "Bedtime",
+    timingIcon: "bedtime",
+    timingColor: "text-primary",
+    food: "With or without food",
+    duration: "30 Days",
+    instructions: "Take 1 tablet orally once daily at bedtime.",
+    timestamp: "05:08",
+    quote: "Starting Montelukast 10mg orally daily for 30 days.",
+    debugPhonetic: [],
+    debugFuzzy: [],
+    originalExtracted: "Montelukast",
+  },
+  {
+    id: 3,
+    name: "Fluticasone 50mcg",
+    sub: "• Nasal Spray",
+    category: "Corticosteroid",
+    verified: "DB Verified",
+    dose: "1 spray",
+    frequency: "Once daily",
+    timing: "Morning",
+    timingIcon: "light_mode",
+    timingColor: "text-clinical-warning",
+    food: "Intranasal",
+    duration: "14 Days",
+    instructions: "Use 1 spray in each nostril once daily for allergic rhinitis.",
+    timestamp: "05:44",
+    quote: "Fluticasone nasal spray 50mcg daily for 14 days.",
+    debugPhonetic: [],
+    debugFuzzy: [],
+    originalExtracted: "Fluticasone",
+  },
+];
+
+function chooseBestCandidate(item: any) {
+  if (item.selection_status !== "matched") return null;
+  const candidate = item.recommended_candidate;
+  return candidate?.compatible && candidate?.auto_selectable ? candidate : null;
+}
+
+function getBestUniqueCandidates(item: any) {
+  const pools = [item?.candidates, item?.top_phonetic, item?.top_fuzzy]
+    .filter(Array.isArray)
+    .flat();
+  const unique = new Map<string, any>();
+  for (const candidate of pools) {
+    if (!candidate?.brand_name) continue;
+    const key = String(candidate.brand_name).trim().toLowerCase();
+    const existing = unique.get(key);
+    if (!existing || Number(candidate.score || 0) > Number(existing.score || 0)) {
+      unique.set(key, candidate);
+    }
+  }
+  return [...unique.values()]
+    .sort((left, right) => {
+      if (Boolean(left.compatible) !== Boolean(right.compatible)) return left.compatible ? -1 : 1;
+      return Number(right.score || 0) - Number(left.score || 0)
+        || String(left.brand_name).localeCompare(String(right.brand_name));
+    })
+    .slice(0, 4);
+}
+
+function getMedicationIcon(medication: any) {
+  const text = `${medication.name || ""} ${medication.sub || ""} ${medication.food || ""} ${medication.dose || ""}`.toLowerCase();
+  if (/injection|injectable|iv|intravenous|intramuscular/.test(text)) return "vaccines";
+  if (/inhaler|inhalation|respule|nebul/.test(text)) return "air";
+  if (/capsule/.test(text)) return "pill";
+  if (/syrup|suspension|solution|oral liquid/.test(text)) return "local_drink";
+  if (/cream|ointment|gel|lotion|topical/.test(text)) return "dermatology";
+  if (/spray|nasal|eye drop|ear drop/.test(text)) return "sprinkler";
+  if (/tablet|oral|\btablet\b/.test(text)) return "medication";
+  return "medication";
+}
 
 export default function ReviewDraftPage() {
   const router = useRouter();
   const [isPlaying, setIsPlaying] = useState(false);
   const [bannerMessage, setBannerMessage] = useState("");
-  
-  const [medications, setMedications] = useState([
-    {
-      id: 1,
-      name: "Montelukast Sodium 10 mg",
-      sub: "· Oral Tablet",
-      category: "Oral Leukotriene Receptor Antagonist",
-      verified: "Validated Generic",
-      dose: "1 Tablet",
-      frequency: "Once daily (OD)",
-      timing: "Night (Bedtime)",
-      timingIcon: "bedtime",
-      timingColor: "text-primary",
-      food: "With or without food",
-      duration: "30 Days (Qty: 30)",
-      instructions: "Take 1 tablet by mouth every night at bedtime. For chronic asthma prophylaxis and allergic rhinitis.",
-      timestamp: "04:18",
-      quote: "Let's restart montelukast 10 milligrams nightly at bedtime for the seasonal wheezing..."
-    },
-    {
-      id: 2,
-      name: "Fluticasone Propionate 50 mcg / actuation",
-      sub: "· Nasal Spray Suspension",
-      category: "Corticosteroid Nasal Spray",
-      verified: "First-Line Rhinitis Tx",
-      dose: "1 Spray / Nostril",
-      frequency: "Once daily (OM)",
-      timing: "Morning",
-      timingIcon: "wb_sunny",
-      timingColor: "text-clinical-warning",
-      food: "Nasal Route (N/A)",
-      duration: "14 Days (2 Weeks)",
-      instructions: "Administer 1 spray into each nostril once daily every morning. Shake gently before use.",
-      timestamp: "06:42",
-      quote: "Fluticasone nasal spray, one spray per nostril every morning for two weeks..."
-    },
-    {
-      id: 3,
-      name: "Albuterol Sulfate HFA 90 mcg / actuation",
-      sub: "· Inhalation Aerosol",
-      category: "Short-Acting Beta-2 Agonist (SABA)",
-      badge: "PRN Rescue Inhaler",
-      borderWarning: true,
-      dose: "1-2 Puffs",
-      frequency: "q4-6h PRN",
-      timing: "PRN Acute Wheeze",
-      timingIcon: "emergency",
-      timingColor: "text-clinical-warning",
-      food: "Inhalation Route",
-      duration: "30 Days (1 Canister)",
-      instructions: "Inhale 1 to 2 puffs every 4 to 6 hours as needed for shortness of breath or acute wheeze. Rinse mouth after use.",
-      timestamp: "08:05",
-      quote: "Keep your albuterol inhaler ready, one or two puffs as needed if you feel acute chest tightness..."
-    }
-  ]);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [searchResults, setSearchResults] = useState<any[]>([]);
+  const [searchingMedicationId, setSearchingMedicationId] = useState<number | null>(null);
+  const [reviewMedicationId, setReviewMedicationId] = useState<number | null>(null);
+  const [reviewSearchQuery, setReviewSearchQuery] = useState("");
+  const [reviewSearchResults, setReviewSearchResults] = useState<any[]>([]);
+  const [reviewSearching, setReviewSearching] = useState(false);
+  const [patient, setPatient] = useState<any>(null);
+  const [deleteMedicationId, setDeleteMedicationId] = useState<number | null>(null);
+  const [medications, setMedications] = useState<any[]>([]);
+  const [isFinalizing, setIsFinalizing] = useState(false);
+  const [finalizeError, setFinalizeError] = useState("");
+  const dropdownRef = useRef<HTMLDivElement>(null);
+  const finalizationInFlightRef = useRef(false);
 
-  const handleDelete = (id: number) => {
-    if (confirm("Are you sure you want to remove this medication from the current draft?")) {
-      setMedications(medications.filter((m) => m.id !== id));
+  const patientName = patient ? `${patient.first_name || ""} ${patient.last_name || ""}`.trim() : "Patient";
+  const patientInitials = `${patient?.first_name?.charAt(0) || "P"}${patient?.last_name?.charAt(0) || ""}`;
+  const patientAge = patient?.age || "Age N/A";
+
+  useEffect(() => {
+    const activeEntry = localStorage.getItem("activeQueueEntry");
+    if (activeEntry) {
+      try { setPatient(JSON.parse(activeEntry)); } catch (error) { console.error("Could not load patient:", error); }
     }
+  }, []);
+
+  useEffect(() => {
+    const stored = localStorage.getItem("extractionResult");
+    if (!stored) return;
+    try {
+      const { mapped } = JSON.parse(stored);
+      if (!Array.isArray(mapped)) return;
+      const generated = JSON.parse(localStorage.getItem("generatedPrescription") || "null");
+      if (Array.isArray(generated?.prescriptionData?.medications)) {
+        const generatedMeds = generated.prescriptionData.medications.map((medication: any, index: number) => ({
+          id: index + 1,
+          name: medication.medicine,
+          sub: medication.needs_review ? "• Database match needs review" : "• Constrained database match",
+          category: medication.needs_review ? "Needs Verification" : "Database Matched",
+          verified: medication.needs_review ? "Requires clinician verification" : "DB matched",
+          dose: medication.dose || "N/A",
+          frequency: medication.frequency || "N/A",
+          timing: medication.instructions || "N/A",
+          timingIcon: "schedule",
+          timingColor: "text-primary",
+          food: medication.route || "N/A",
+          duration: medication.duration || "N/A",
+          instructions: medication.instructions || "N/A",
+          timestamp: "MedGemma",
+          quote: mapped[index]?.source_text || mapped[index]?.spoken_name || "Extracted medicine",
+          debugPhonetic: mapped[index]?.top_phonetic || [],
+          debugFuzzy: mapped[index]?.top_fuzzy || [],
+          originalExtracted: mapped[index]?.spoken_name || medication.medicine,
+          needsReview: Boolean(medication.needs_review),
+          selectedCandidateId: medication.selected_candidate_id || null,
+          borderWarning: Boolean(medication.needs_review),
+          candidateOptions: getBestUniqueCandidates(mapped[index]),
+        }));
+        setMedications(generatedMeds);
+        return;
+      }
+      const staged = mapped.map((item: any, index: number) => {
+        const proposed = chooseBestCandidate(item);
+        return {
+          id: index + 1,
+          name: proposed?.brand_name || `Unresolved: ${item.spoken_name}`,
+          sub: `• ${proposed?.salt || "Candidate needs verification"}`,
+          category: "Needs Verification",
+          verified: proposed ? "Constrained DB match" : "No safe DB match",
+          dose: item.dose || "N/A",
+          frequency: item.frequency || "N/A",
+          timing: item.instructions || "N/A",
+          timingIcon: "schedule",
+          timingColor: "text-primary",
+          food: item.route || "N/A",
+          duration: item.duration || "N/A",
+          instructions: item.instructions || "N/A",
+          timestamp: "Extracted",
+          quote: item.source_text || item.spoken_name,
+          debugPhonetic: item.top_phonetic || [],
+          debugFuzzy: item.top_fuzzy || [],
+          originalExtracted: item.spoken_name,
+          needsReview: !proposed,
+          selectedCandidateId: proposed?.id || null,
+          borderWarning: !proposed,
+          candidateOptions: getBestUniqueCandidates(item),
+        };
+      });
+      setMedications(staged);
+    } catch (error) {
+      console.error("Could not load extraction result:", error);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (searchingMedicationId === null || searchQuery.trim().length < 2) {
+      setSearchResults([]);
+      return;
+    }
+    const timer = setTimeout(async () => {
+      try {
+        const base = process.env.NEXT_PUBLIC_API_URL || "/api";
+        const res = await fetch(`${base}/prescription/search?q=${encodeURIComponent(searchQuery.trim())}`, {
+          credentials: "include",
+        });
+        const data = await res.json();
+        setSearchResults(data.results || []);
+      } catch (error) {
+        console.error("Search error:", error);
+        setSearchResults([]);
+      }
+    }, 300);
+    return () => clearTimeout(timer);
+  }, [searchQuery, searchingMedicationId]);
+
+  useEffect(() => {
+    if (reviewMedicationId === null || reviewSearchQuery.trim().length < 2) {
+      setReviewSearchResults([]);
+      setReviewSearching(false);
+      return;
+    }
+    const controller = new AbortController();
+    const timer = setTimeout(async () => {
+      setReviewSearching(true);
+      try {
+        const base = process.env.NEXT_PUBLIC_API_URL || "/api";
+        const response = await fetch(`${base}/prescription/search?q=${encodeURIComponent(reviewSearchQuery.trim())}`, {
+          credentials: "include",
+          signal: controller.signal,
+        });
+        const data = await response.json();
+        if (!response.ok) throw new Error(data?.error || "Medicine search failed");
+        setReviewSearchResults(data.results || []);
+      } catch (error) {
+        if ((error as Error).name !== "AbortError") {
+          console.error("Review medicine search error:", error);
+          setReviewSearchResults([]);
+        }
+      } finally {
+        if (!controller.signal.aborted) setReviewSearching(false);
+      }
+    }, 300);
+    return () => {
+      clearTimeout(timer);
+      controller.abort();
+    };
+  }, [reviewSearchQuery, reviewMedicationId]);
+
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
+        setSearchingMedicationId(null);
+        setSearchQuery("");
+        setSearchResults([]);
+      }
+    };
+    if (searchingMedicationId !== null) {
+      document.addEventListener("mousedown", handleClickOutside);
+    }
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+    };
+  }, [searchingMedicationId]);
+
+  const updateMedication = (id: number, field: string, value: string) => {
+    setMedications((current) => current.map((medication) => medication.id === id ? { ...medication, [field]: value } : medication));
   };
 
-  const handleAddMedicine = () => {
-    const newId = Date.now();
-    setMedications([
-      ...medications,
-      {
-        id: newId,
-        name: "Cetirizine HCl 10 mg",
-        sub: "· Oral Tablet",
-        category: "Second-Generation Antihistamine",
-        verified: "Allergy Relief",
-        dose: "1 Tablet",
-        frequency: "Once daily (OD)",
-        timing: "Evening",
-        timingIcon: "schedule",
-        timingColor: "text-primary",
-        food: "With or without food",
-        duration: "30 Days (Qty: 30)",
-        instructions: "Take 1 tablet daily as needed for symptom control.",
-        timestamp: "09:12",
-        quote: "Adding cetirizine for persistent histamine-mediated ocular and nasal symptoms.",
-        badge: undefined,
-        borderWarning: undefined
+  const startMedicineSearch = (medication: any) => {
+    setSearchingMedicationId(medication.id);
+    setSearchQuery(medication.name || "");
+    setSearchResults([]);
+  };
+
+  const handleSelectMedicine = (drug: any) => {
+    if (searchingMedicationId === null) return;
+    const brandName = typeof drug === "string" ? drug : drug.brand_name;
+    setMedications((current) => current.map((medication) => medication.id === searchingMedicationId ? {
+      ...medication,
+      name: brandName,
+      sub: "• Database medicine",
+      verified: "Clinician-selected DB match",
+      needsReview: false,
+      borderWarning: false,
+    } : medication));
+    setSearchingMedicationId(null);
+    setSearchQuery("");
+    setSearchResults([]);
+  };
+
+  const handleReviewSelection = (drug: any) => {
+    if (reviewMedicationId === null) return;
+    const brandName = typeof drug === "string" ? drug : drug.brand_name;
+    const selectedId = typeof drug === "string" ? null : drug.id || null;
+    const currentId = reviewMedicationId;
+    setMedications((current) => current.map((medication) => medication.id === currentId ? {
+      ...medication,
+      name: brandName,
+      sub: "• Doctor-selected database medicine",
+      category: "Clinician Verified",
+      verified: "Clinician-selected DB match",
+      needsReview: false,
+      borderWarning: false,
+      selectedCandidateId: selectedId,
+    } : medication));
+    setBannerMessage(`${brandName} selected.`);
+    setReviewSearchQuery("");
+    setReviewSearchResults([]);
+    setReviewMedicationId(null);
+  };
+
+  const reviewLater = () => {
+    setReviewSearchQuery("");
+    setReviewSearchResults([]);
+    setReviewMedicationId(null);
+  };
+
+  const handleDelete = () => {
+    if (deleteMedicationId === null) return;
+    setMedications((current) => current.filter((medication) => medication.id !== deleteMedicationId));
+    setDeleteMedicationId(null);
+  };
+
+  const finalizePrescription = async () => {
+    if (finalizationInFlightRef.current || medications.length === 0) return;
+    const unresolved = medications.find((medication) => String(medication.name || "").startsWith("Unresolved:"));
+    if (unresolved) {
+      setFinalizeError(`Select a database medicine for ${unresolved.originalExtracted || unresolved.name} before finalizing.`);
+      return;
+    }
+    finalizationInFlightRef.current = true;
+    setIsFinalizing(true);
+    setFinalizeError("");
+    let generated: any = {};
+    try {
+      generated = JSON.parse(localStorage.getItem("generatedPrescription") || "{}") || {};
+    } catch {
+      setFinalizeError("The generated prescription could not be read.");
+      finalizationInFlightRef.current = false;
+      setIsFinalizing(false);
+      return;
+    }
+
+    const prescriptionData = generated.prescriptionData || {};
+    const updatedMedications = medications.map((medication) => ({
+      medicine: medication.name || "",
+      dose: medication.dose || "",
+      route: medication.food || "",
+      frequency: medication.frequency || "",
+      duration: medication.duration || "",
+      instructions: [
+        medication.instructions || "",
+        medication.timing && medication.timing !== medication.instructions ? `Timing: ${medication.timing}` : "",
+      ].filter(Boolean).join(" "),
+      refills: medication.refills,
+      dispense: medication.dispense,
+    }));
+
+    const updatedGenerated = {
+      ...generated,
+      patientName: generated.patientName || patientName,
+      prescriptionData: { ...prescriptionData, medications: updatedMedications },
+    };
+    localStorage.setItem("generatedPrescription", JSON.stringify(updatedGenerated));
+
+    try {
+      const encounter = JSON.parse(localStorage.getItem("activeEncounter") || "null");
+      const transcriptionResult = JSON.parse(localStorage.getItem("transcriptionResult") || "null");
+      const patientId = Number(patient?.patient_id || encounter?.patient_id || localStorage.getItem("activePatientId"));
+      if (!Number.isInteger(patientId) || patientId <= 0 || !updatedGenerated.prescriptionData) {
+        throw new Error("The active patient or reviewed prescription is missing.");
       }
-    ]);
-    setBannerMessage("Added Cetirizine 10mg to staged draft.");
-    setTimeout(() => setBannerMessage(""), 3000);
+
+      const result: any = await api.encounters.finalize({
+        encounter_id: encounter?.id || null,
+        patient_id: patientId,
+        queue_id: encounter?.queue_id || patient?.queue_id || patient?.id || null,
+        appointment_id: patient?.appointment_id || null,
+        chief_complaint: updatedGenerated.prescriptionData.chief_complaint || patient?.complaint || null,
+        diagnosis: updatedGenerated.prescriptionData.final_diagnosis || updatedGenerated.prescriptionData.differential_diagnosis || null,
+        notes: updatedGenerated.prescriptionData.hpi || null,
+        prescription: updatedGenerated.prescriptionData,
+        transcription: transcriptionResult?.transcript || transcriptionResult?.text || "",
+        audio_url: transcriptionResult?.audioUrl || transcriptionResult?.audio_url || null,
+      });
+      sessionStorage.setItem("finalizedPrescriptionId", String(result.prescription.id));
+      clearConsultationState();
+      router.replace("/consultation/review/finalized");
+    } catch (error) {
+      setFinalizeError(error instanceof Error ? error.message : "The prescription could not be finalized.");
+      finalizationInFlightRef.current = false;
+      setIsFinalizing(false);
+    }
   };
 
   return (
-    <div className="flex flex-col w-full pb-28 gap-space-lg">
+    <section className="w-full max-w-7xl mx-auto flex flex-col gap-6 min-h-[calc(100vh-6rem)] pb-4 pt-4 lg:flex-row">
+      <div className="hidden w-56 shrink-0 flex-col gap-5 pt-2 lg:flex">
+        <h3 className="text-[12px] font-bold uppercase tracking-wider text-text-muted ml-1">Encounter Workflow</h3>
+        <div className="flex flex-col gap-0 relative">
+          <div className="absolute left-3.5 top-2 bottom-6 w-px bg-surface-container-highest z-0"></div>
+          {STEPS.map((step, idx) => {
+            const isActive = idx === 4;
+            const isCompleted = idx < 4;
+
+            return (
+              <div key={step} className="flex items-start gap-4 relative z-10 py-3">
+                <div className={`flex items-center justify-center w-7 h-7 rounded-full text-[12px] font-bold shrink-0 border-2 ${isActive ? "bg-primary text-white border-primary shadow-sm" : isCompleted ? "bg-primary-container text-primary border-primary" : "bg-app-bg text-text-muted border-surface-container-highest"}`}>
+                  {isCompleted ? <span className="material-symbols-outlined text-[16px]">check</span> : idx + 1}
+                </div>
+                <div className="flex flex-col mt-0.5">
+                  <span className={`text-[14px] font-bold ${isActive || isCompleted ? "text-primary" : "text-on-surface-variant"}`}>{step}</span>
+                  {isActive && <span className="text-[11px] font-semibold text-clinical-success flex items-center gap-1 mt-1"><span className="w-1.5 h-1.5 rounded-full bg-clinical-success animate-ping"></span>Active</span>}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+
+      <div className="flex-1 flex flex-col w-full pb-28 gap-space-lg lg:overflow-y-auto lg:pr-2">
+
       {bannerMessage && (
         <div className="p-3 rounded-lg bg-success-bg text-clinical-success font-semibold text-[14px] flex items-center gap-2">
           <span className="material-symbols-outlined text-[16px]">check_circle</span>
@@ -106,24 +441,12 @@ export default function ReviewDraftPage() {
         </div>
       )}
 
-      {/* Breadcrumbs */}
-      <div className="flex flex-wrap items-center justify-between">
-        <nav className="flex items-center gap-1.5 text-on-surface-variant text-[13px]">
-          <span className="hover:text-primary transition-colors cursor-pointer">Doctor Workspace</span>
-          <span className="material-symbols-outlined text-[14px] text-text-muted">chevron_right</span>
-          <span className="hover:text-primary transition-colors cursor-pointer">Consultations</span>
-          <span className="material-symbols-outlined text-[14px] text-text-muted">chevron_right</span>
-          <span className="hover:text-primary transition-colors cursor-pointer text-text-ink font-semibold">Maya Lin Harrison</span>
-          <span className="material-symbols-outlined text-[14px] text-text-muted">chevron_right</span>
-          <span className="px-1.5 py-0.5 rounded bg-container-tint text-primary font-bold">Prescription Review</span>
-        </nav>
-        <div className="flex items-center gap-2 text-[11px] text-text-muted font-medium">
-          <span className="inline-block w-2 h-2 rounded-full bg-clinical-success animate-pulse"></span>
-          <span>Enc-ID: #ENC-9082-ROOM101</span>
-          <span className="text-border-divider">|</span>
-          <span>Synced 1m ago</span>
+      {finalizeError && (
+        <div role="alert" className="p-3 rounded-lg bg-error-bg text-clinical-error font-semibold text-[14px] flex items-center gap-2">
+          <span className="material-symbols-outlined text-[16px]">error</span>
+          {finalizeError}
         </div>
-      </div>
+      )}
 
       {/* Patient Context */}
       <section className="w-full bg-card-surface rounded-xl shadow-sm p-4 border border-surface-container">
@@ -131,69 +454,30 @@ export default function ReviewDraftPage() {
           <div className="flex items-center gap-4 min-w-0">
             <div className="relative">
               <div className="w-14 h-14 rounded-full bg-container-tint flex items-center justify-center text-primary-container text-[20px] font-bold shadow-sm ring-2 ring-card-surface">
-                ML
+                {patientInitials}
               </div>
               <span className="absolute bottom-0 right-0 w-3.5 h-3.5 rounded-full bg-clinical-success ring-2 ring-card-surface"></span>
             </div>
             <div className="flex flex-col min-w-0">
               <div className="flex items-center gap-2 flex-wrap">
-                <h1 className="text-[22px] font-bold text-text-ink truncate">Maya Lin Harrison</h1>
-                <span className="px-2 py-0.5 rounded bg-surface-container-high text-on-surface-variant text-[11px] font-semibold">32 yrs · Female</span>
-                <span className="px-2 py-0.5 rounded bg-surface-container text-text-muted text-[11px] font-bold">Blood O+</span>
-                <span className="text-[11px] text-text-muted font-mono tracking-tight">UHID: UHID-MH-2024-88412</span>
+                <h1 className="text-[22px] font-bold text-text-ink truncate">{patientName}</h1>
+                <span className="px-2 py-0.5 rounded bg-surface-container-high text-on-surface-variant text-[11px] font-semibold">{patientAge} · {patient?.gender || "Gender N/A"}</span>
+                <span className="px-2 py-0.5 rounded bg-surface-container text-text-muted text-[11px] font-bold">Blood {patient?.blood_group || "N/A"}</span>
+                <span className="text-[11px] text-text-muted font-mono tracking-tight">UHID: {patient?.uhid || "N/A"}</span>
               </div>
               <div className="flex items-center gap-2 mt-1 text-on-surface-variant text-[12px] flex-wrap">
-                <span className="flex items-center gap-1 font-medium"><span className="material-symbols-outlined text-[16px] text-primary">door_open</span> Room 101</span>
+                <span className="flex items-center gap-1 font-medium"><span className="material-symbols-outlined text-[16px] text-primary">door_open</span> {patient?.room || "Room N/A"}</span>
                 <span className="text-border-divider">·</span>
-                <span className="flex items-center gap-1 font-medium"><span className="material-symbols-outlined text-[16px] text-primary">stethoscope</span> Attending: Dr. Eleanor Vance, MD</span>
                 <span className="text-border-divider">·</span>
-                <span className="text-text-muted">Primary Dx: Acute exacerbation of chronic cough & allergic rhinitis</span>
+                <span className="text-text-muted">Primary Dx: {patient?.complaint || "N/A"}</span>
               </div>
             </div>
           </div>
 
-          <div className="flex items-center gap-3">
-            <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-error-bg text-clinical-error shadow-sm">
-              <span className="material-symbols-outlined text-[20px]">warning</span>
-              <div className="flex flex-col">
-                <span className="text-[11px] font-bold uppercase tracking-wider leading-tight">Allergy Alert</span>
-                <span className="text-[12px] font-semibold">Penicillin (Severe Rash)</span>
-              </div>
-            </div>
-          </div>
         </div>
       </section>
 
-      {/* AI-Generated prescription banner */}
-      <section className="w-full bg-gradient-to-r from-container-tint via-card-surface to-success-bg/40 rounded-xl p-4 shadow-sm relative overflow-hidden border border-surface-container">
-        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 relative z-10">
-          <div className="flex items-start gap-3">
-            <div className="w-10 h-10 rounded-lg bg-primary text-card-surface flex items-center justify-center shadow-md shrink-0">
-              <span className="material-symbols-outlined text-[24px]">auto_awesome</span>
-            </div>
-            <div className="flex flex-col">
-              <div className="flex items-center gap-2 flex-wrap mb-1">
-                <span className="text-[18px] font-bold text-text-ink">AI-Generated Prescription Draft</span>
-                <span className="px-2 py-0.5 rounded-full bg-primary-container text-card-surface text-[11px] uppercase tracking-wider font-bold shadow-sm">Real-Time Synthesis</span>
-                <span className="px-2 py-0.5 rounded-full bg-surface-container text-text-muted text-[11px]">Station 101 Ambient Stream</span>
-              </div>
-              <p className="text-on-surface-variant text-[14px] max-w-3xl font-medium">
-                Synthesized from Room 101 ambient voice consultation. Verify all pharmacological dosages, timing, food interactions, and contraindications before clinical sign-off.
-              </p>
-            </div>
-          </div>
-
-          <div className="shrink-0 flex items-center gap-2 px-3.5 py-2 rounded-lg bg-success-bg shadow-sm">
-            <div className="w-6 h-6 rounded-full bg-clinical-success text-card-surface flex items-center justify-center shrink-0">
-              <span className="material-symbols-outlined text-[16px] font-bold">check</span>
-            </div>
-            <div className="flex flex-col">
-              <span className="text-[11px] text-clinical-success font-bold uppercase tracking-wider">FDB Safety & Drug-Allergy Check Passed</span>
-              <span className="text-[12px] text-tertiary font-semibold">No Penicillin / Beta-lactam conflicts detected ({medications.length}/{medications.length} Safe)</span>
-            </div>
-          </div>
-        </div>
-      </section>
+      
 
       {/* Staged Pharmacotherapy Section */}
       <div>
@@ -202,10 +486,6 @@ export default function ReviewDraftPage() {
             <h2 className="text-[18px] font-bold text-text-ink">Staged Pharmacotherapy</h2>
             <span className="w-5 h-5 rounded-full bg-primary text-card-surface flex items-center justify-center text-[11px] font-bold">{medications.length}</span>
             <span className="text-[13px] text-text-muted ml-2 font-medium">Draft ID: RX-2024-88412-A</span>
-          </div>
-          <div className="flex items-center gap-1 text-[11px]">
-            <span className="text-on-surface-variant font-medium">Audio Confidence:</span>
-            <span className="px-2 py-0.5 rounded bg-success-bg text-clinical-success font-bold">99.4% Mean Spectral Match</span>
           </div>
         </div>
 
@@ -218,48 +498,66 @@ export default function ReviewDraftPage() {
                 <div className="flex items-start gap-4 flex-1">
                   <div className="w-12 h-12 rounded-xl bg-container-tint flex items-center justify-center text-primary shrink-0 shadow-inner">
                     <span className="material-symbols-outlined text-[28px]">
-                      {med.id === 1 ? "medication" : med.id === 2 ? "air" : "pulmonology"}
+                      {getMedicationIcon(med)}
                     </span>
                   </div>
                   <div className="flex flex-col flex-1 min-w-0">
                     <div className="flex items-center gap-2 flex-wrap mb-1">
-                      <span className="text-[11px] px-2 py-0.5 rounded bg-primary/10 text-primary font-bold tracking-wide uppercase">{med.category}</span>
-                      {med.verified && (
-                        <span className="text-[11px] text-clinical-success flex items-center gap-0.5 font-bold">
-                          <span className="material-symbols-outlined text-[14px]">verified</span> {med.verified}
-                        </span>
-                      )}
                       {med.badge && (
                         <span className="px-2 py-0.5 rounded bg-container-tint text-primary text-[11px] font-bold uppercase">{med.badge}</span>
                       )}
+                      <span className={`px-2 py-0.5 rounded text-[11px] font-bold ${med.needsReview ? "bg-warning-bg text-clinical-warning" : "bg-success-bg text-clinical-success"}`}>
+                        {med.verified}
+                      </span>
                     </div>
                     <h3 className="text-[20px] font-bold text-text-ink mb-2">
-                      {med.name} <span className="text-on-surface-variant font-normal text-[16px]">{med.sub}</span>
+                      {searchingMedicationId === med.id ? (
+                        <div className="relative w-full max-w-xl">
+                          <input
+                            autoFocus
+                            value={searchQuery}
+                            onChange={(event) => setSearchQuery(event.target.value)}
+                            placeholder="Search 1mg medicine database..."
+                            className="w-full rounded-md border border-primary bg-card-surface px-3 py-2 text-[14px] font-medium text-text-ink focus:outline-none focus:ring-2 focus:ring-primary"
+                          />
+                          {searchResults.length > 0 && (
+                            <div ref={dropdownRef} className="absolute left-0 right-0 top-full z-20 mt-1 max-h-56 overflow-y-auto rounded-lg border border-surface-container bg-card-surface p-1 shadow-xl">
+                              {searchResults.map((result, index) => (
+                                <button key={`${result}-${index}`} onClick={() => handleSelectMedicine(result)} className="flex w-full flex-col items-start rounded-md px-3 py-2 text-left hover:bg-container-tint">
+                                  <span className="text-[13px] font-bold text-text-ink">{result}</span>
+                                </button>
+                              ))}
+                            </div>
+                          )}
+                        </div>
+                      ) : (
+                        <>{med.name} <span className="text-on-surface-variant font-normal text-[16px]"></span></>
+                      )}
                     </h3>
 
                     {/* Dosage Grid */}
                     <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2 bg-surface-container-low p-3 rounded-lg mb-3 border border-surface-container">
                       <div className="flex flex-col">
                         <span className="text-[11px] text-text-muted uppercase font-bold">Dose</span>
-                        <span className="text-[13px] text-text-ink font-bold mt-0.5">{med.dose}</span>
+                        <input value={med.dose || ""} onChange={(event) => updateMedication(med.id, "dose", event.target.value)} className="mt-0.5 w-full rounded border border-transparent bg-transparent text-[13px] font-bold text-text-ink focus:border-primary focus:bg-card-surface focus:outline-none" />
                       </div>
                       <div className="flex flex-col">
                         <span className="text-[11px] text-text-muted uppercase font-bold">Frequency</span>
-                        <span className="text-[13px] text-text-ink font-bold mt-0.5">{med.frequency}</span>
+                        <input value={med.frequency || ""} onChange={(event) => updateMedication(med.id, "frequency", event.target.value)} className="mt-0.5 w-full rounded border border-transparent bg-transparent text-[13px] font-bold text-text-ink focus:border-primary focus:bg-card-surface focus:outline-none" />
                       </div>
                       <div className="flex flex-col">
                         <span className="text-[11px] text-text-muted uppercase font-bold">Timing</span>
                         <span className={`text-[13px] font-bold flex items-center gap-1 mt-0.5 ${med.timingColor}`}>
-                          <span className="material-symbols-outlined text-[15px]">{med.timingIcon}</span> {med.timing}
+                          <input value={med.timing || ""} onChange={(event) => updateMedication(med.id, "timing", event.target.value)} className="min-w-0 w-full rounded border border-transparent bg-transparent text-[13px] font-bold focus:border-primary focus:bg-card-surface focus:outline-none" />
                         </span>
                       </div>
                       <div className="flex flex-col">
                         <span className="text-[11px] text-text-muted uppercase font-bold">Food / Route</span>
-                        <span className="text-[13px] text-text-ink font-bold mt-0.5">{med.food}</span>
+                        <input value={med.food || ""} onChange={(event) => updateMedication(med.id, "food", event.target.value)} className="mt-0.5 w-full rounded border border-transparent bg-transparent text-[13px] font-bold text-text-ink focus:border-primary focus:bg-card-surface focus:outline-none" />
                       </div>
                       <div className="flex flex-col">
                         <span className="text-[11px] text-text-muted uppercase font-bold">Duration</span>
-                        <span className="text-[13px] text-text-ink font-bold mt-0.5">{med.duration}</span>
+                        <input value={med.duration || ""} onChange={(event) => updateMedication(med.id, "duration", event.target.value)} className="mt-0.5 w-full rounded border border-transparent bg-transparent text-[13px] font-bold text-text-ink focus:border-primary focus:bg-card-surface focus:outline-none" />
                       </div>
                     </div>
 
@@ -267,7 +565,7 @@ export default function ReviewDraftPage() {
                       <span className="material-symbols-outlined text-primary text-[18px] mt-0.5">format_quote</span>
                       <div className="flex flex-col">
                         <span className="text-[11px] uppercase text-text-muted font-bold tracking-wider">Sig / Instructions</span>
-                        <p className="text-[14px] text-text-ink font-medium mt-0.5">{med.instructions}</p>
+                        <textarea value={med.instructions || ""} onChange={(event) => updateMedication(med.id, "instructions", event.target.value)} rows={2} className="mt-0.5 w-full resize-y rounded border border-transparent bg-transparent text-[14px] font-medium text-text-ink focus:border-primary focus:bg-card-surface focus:outline-none" />
                       </div>
                     </div>
 
@@ -275,28 +573,18 @@ export default function ReviewDraftPage() {
                       <span className="material-symbols-outlined text-clinical-success text-[14px]">graphic_eq</span>
                       <span>Audio timestamp: {med.timestamp} — &quot;{med.quote}&quot;</span>
                     </div>
+
+                    
                   </div>
                 </div>
 
                 <div className="flex lg:flex-col items-center justify-end gap-2 shrink-0 pt-1">
-                  <button className="flex items-center gap-1.5 px-3 py-2 rounded-md bg-card-surface text-text-ink hover:bg-container-tint transition-colors text-[13px] font-semibold shadow-sm w-full justify-center border border-surface-container cursor-pointer">
+                  <button onClick={() => med.needsReview ? setReviewMedicationId(med.id) : startMedicineSearch(med)} className="flex items-center gap-1.5 px-3 py-2 rounded-md bg-card-surface text-text-ink hover:bg-container-tint transition-colors text-[13px] font-semibold shadow-sm w-full justify-center border border-surface-container cursor-pointer">
                     <span className="material-symbols-outlined text-[18px] text-primary">swap_horiz</span>
-                    <span>Change Medicine</span>
+                    <span>{med.needsReview ? "Review Match" : "Change Medicine"}</span>
                   </button>
                   <button 
-                    onClick={() => {
-                      const newDose = prompt("Edit Sig / Directions:", med.instructions);
-                      if (newDose) {
-                        setMedications(medications.map(m => m.id === med.id ? {...m, instructions: newDose} : m));
-                      }
-                    }}
-                    className="flex items-center gap-1.5 px-3 py-2 rounded-md bg-card-surface text-text-ink hover:bg-container-tint transition-colors text-[13px] font-semibold shadow-sm w-full justify-center border border-surface-container cursor-pointer"
-                  >
-                    <span className="material-symbols-outlined text-[18px] text-on-surface-variant">edit</span>
-                    <span>Edit</span>
-                  </button>
-                  <button 
-                    onClick={() => handleDelete(med.id)}
+                    onClick={() => setDeleteMedicationId(med.id)}
                     className="p-2 rounded-md bg-card-surface text-clinical-error hover:bg-error-bg transition-colors shadow-sm flex items-center justify-center border border-surface-container cursor-pointer" 
                     title="Delete Item"
                   >
@@ -309,94 +597,19 @@ export default function ReviewDraftPage() {
 
           {medications.length === 0 && (
             <div className="p-8 text-center bg-card-surface rounded-xl border border-dashed border-container-tint">
-              <p className="text-text-muted font-medium">All staged medications cleared. Use &quot;+ Add Medicine&quot; below to restore or add new orders.</p>
+              <p className="text-text-muted font-medium">All staged medications cleared. Use &quot;Add Medicine&quot; below to restore or add new orders.</p>
             </div>
           )}
         </div>
-      </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-        <div className="bg-card-surface rounded-xl p-4 shadow-sm flex flex-col justify-between border border-surface-container">
-          <div>
-            <div className="flex items-center justify-between mb-2">
-              <span className="text-[11px] uppercase tracking-wider text-text-muted font-bold">Designated E-Rx Pharmacy</span>
-              <span className="px-2 py-0.5 rounded bg-success-bg text-clinical-success text-[11px] font-bold">NCPDP Verified</span>
-            </div>
-            <div className="flex items-start gap-3 mb-2">
-              <div className="w-9 h-9 rounded-lg bg-surface-container-low flex items-center justify-center text-primary">
-                <span className="material-symbols-outlined text-[20px]">local_pharmacy</span>
-              </div>
-              <div className="flex flex-col">
-                <span className="text-[15px] font-bold text-text-ink">CVS Pharmacy #4821</span>
-                <span className="text-[12px] font-medium text-on-surface-variant">845 Michigan Ave, Chicago IL 60611</span>
-                <span className="text-[11px] text-text-muted font-mono font-semibold mt-0.5">Fax: (312) 555-0199 · Tel: (312) 555-0144</span>
-              </div>
-            </div>
-          </div>
-          <button className="text-primary text-[13px] font-semibold hover:underline flex items-center gap-1 self-start mt-2 cursor-pointer">
-            <span>Change Pharmacy</span>
-            <span className="material-symbols-outlined text-[16px]">open_in_new</span>
-          </button>
-        </div>
-
-        <div className="bg-card-surface rounded-xl p-4 shadow-sm lg:col-span-2 flex flex-col justify-between border border-surface-container">
-          <div className="flex items-center justify-between mb-2">
-            <div className="flex items-center gap-2">
-              <span className="material-symbols-outlined text-primary text-[18px]">graphic_eq</span>
-              <span className="text-[11px] uppercase tracking-wider text-text-muted font-bold">Ambient Audio Session Telemetry</span>
-            </div>
-            <span className="text-[11px] text-text-muted font-semibold">Total Consult: 11m 42s</span>
-          </div>
-          <div className="bg-surface-container-low border border-surface-container rounded-lg p-3 flex items-center gap-4">
-            <button 
-              onClick={() => setIsPlaying(!isPlaying)}
-              className="w-10 h-10 rounded-full bg-primary text-card-surface flex items-center justify-center hover:bg-accent-dark transition-colors shadow-sm shrink-0 cursor-pointer"
-            >
-              <span className="material-symbols-outlined text-[20px]">{isPlaying ? "pause" : "play_arrow"}</span>
-            </button>
-            <div className="flex-1 flex flex-col">
-              <div className="flex justify-between items-center text-[11px] text-text-muted font-semibold mb-1">
-                <span>Prescription Section (04:15 - 08:30)</span>
-                <span>{isPlaying ? "05:12 / 11:42 (Playing)" : "04:15 / 11:42"}</span>
-              </div>
-              <div className="h-6 flex items-end gap-1">
-                <span className={`w-1 bg-primary rounded-full transition-all duration-300 ${isPlaying ? "h-6 animate-pulse" : "h-3"}`}></span>
-                <span className={`w-1 bg-primary rounded-full transition-all duration-300 ${isPlaying ? "h-4" : "h-5"}`}></span>
-                <span className={`w-1 bg-primary rounded-full transition-all duration-300 ${isPlaying ? "h-6 animate-pulse" : "h-6"}`}></span>
-                <span className={`w-1 bg-primary rounded-full transition-all duration-300 ${isPlaying ? "h-3" : "h-4"}`}></span>
-                <span className={`w-1 bg-primary rounded-full transition-all duration-300 ${isPlaying ? "h-5 animate-pulse" : "h-3"}`}></span>
-                <span className={`w-1 bg-primary rounded-full transition-all duration-300 ${isPlaying ? "h-6" : "h-5"}`}></span>
-                <span className="w-1 bg-container-tint h-3 rounded-full"></span>
-                <span className="w-1 bg-primary h-4 rounded-full"></span>
-                <span className="w-1 bg-primary h-5 rounded-full"></span>
-                <span className="w-1 bg-container-tint h-2 rounded-full"></span>
-                <span className="w-1 bg-container-tint h-3 rounded-full"></span>
-                <span className="w-1 bg-primary h-6 rounded-full"></span>
-                <span className="w-1 bg-primary h-4 rounded-full"></span>
-              </div>
-            </div>
-            <button className="px-3 py-1.5 rounded-md bg-card-surface border border-surface-container text-text-ink text-[13px] font-semibold hover:bg-container-tint transition-colors flex items-center gap-1 shadow-sm cursor-pointer">
-              <span className="material-symbols-outlined text-[16px]">subtitles</span>
-              <span>Transcript</span>
-            </button>
-          </div>
-          <p className="text-[12px] font-medium text-text-muted mt-2">
-            Synthesizer model: SleekCare Bio-Voice v4.1 · Attending audio confirmed no off-label warnings triggered.
-          </p>
-        </div>
-      </div>
-
-      <div className="fixed bottom-0 left-64 right-0 bg-card-surface/95 backdrop-blur-md shadow-[0_-4px_20px_rgba(0,0,0,0.06)] z-30 px-margin-desktop py-3 flex flex-wrap items-center justify-between border-t border-surface-container">
-        <div className="flex items-center gap-3">
-          <button onClick={handleAddMedicine} className="flex items-center gap-1.5 px-4 py-2.5 rounded-md bg-surface-container-low text-text-ink hover:bg-container-tint transition-colors text-[13px] font-bold shadow-sm border border-surface-container cursor-pointer">
+        <div className="sticky bottom-0 z-30 mt-6 flex flex-wrap items-center justify-between gap-4 rounded-xl border border-container-tint bg-card-surface/95 p-4 shadow-xl backdrop-blur-md">
+          <div className="flex items-center gap-3">
+            <button onClick={() => setBannerMessage("Use Change Medicine on a staged medication to search the 1mg database.")} className="flex items-center gap-1.5 px-4 py-2.5 rounded-md bg-surface-container-low text-text-ink hover:bg-container-tint transition-colors text-[13px] font-bold shadow-sm border border-surface-container cursor-pointer">
             <span className="material-symbols-outlined text-[18px] text-primary">add_circle</span>
-            <span>+ Add Medicine</span>
+            <span>Add Medicine</span>
           </button>
-          <button className="flex items-center gap-1.5 px-4 py-2.5 rounded-md bg-surface-container-low text-text-ink hover:bg-container-tint transition-colors text-[13px] font-bold shadow-sm group border border-surface-container cursor-pointer">
-            <span className="material-symbols-outlined text-[18px] text-clinical-error group-hover:animate-pulse">mic</span>
-            <span>Re-record Voice</span>
-          </button>
-          <button onClick={() => { if (confirm("Discard draft session?")) setMedications([]); }} className="flex items-center gap-1 px-3 py-2.5 rounded-md text-text-muted hover:text-clinical-error hover:bg-error-bg transition-colors text-[13px] font-semibold cursor-pointer">
+          
+          <button onClick={() => setMedications([])} className="flex items-center gap-1 px-3 py-2.5 rounded-md text-text-muted hover:text-clinical-error hover:bg-error-bg transition-colors text-[13px] font-semibold cursor-pointer">
             <span className="material-symbols-outlined text-[18px]">close</span>
             <span>Discard Draft</span>
           </button>
@@ -408,15 +621,113 @@ export default function ReviewDraftPage() {
         </div>
 
         <div className="flex items-center gap-3 mt-3 sm:mt-0">
-          <button className="px-4 py-2.5 rounded-md bg-card-surface border border-surface-container text-text-ink text-[13px] font-bold hover:bg-container-tint transition-colors shadow-sm cursor-pointer">
-            Save as Template
+          <button disabled title="Prescription templates are not available yet" className="cursor-not-allowed rounded-md border border-surface-container bg-surface-container px-4 py-2.5 text-[13px] font-bold text-text-muted opacity-70 shadow-sm">
+            Templates Unavailable
           </button>
-          <button onClick={() => router.push("/consultation/review/verify")} className="flex items-center gap-2 px-6 py-2.5 rounded-md bg-primary-container text-card-surface text-[15px] font-bold hover:bg-accent-dark transition-all shadow-md active:scale-95 cursor-pointer">
-            <span>Review & Sign</span>
+          <button disabled={isFinalizing || medications.length === 0} onClick={finalizePrescription} className="flex items-center gap-2 px-6 py-2.5 rounded-md bg-primary-container text-card-surface text-[15px] font-bold hover:bg-accent-dark transition-all shadow-md active:scale-95 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed">
+            <span className={`material-symbols-outlined text-[20px] ${isFinalizing ? "animate-spin" : ""}`}>{isFinalizing ? "sync" : "lock"}</span>
+            <span>{isFinalizing ? "Finalizing..." : "Finalize Prescription"}</span>
             <span className="material-symbols-outlined text-[20px]">arrow_forward</span>
           </button>
         </div>
       </div>
-    </div>
+      </div>
+
+      {reviewMedicationId !== null && (() => {
+        const medication = medications.find((item) => item.id === reviewMedicationId);
+        if (!medication) return null;
+        const options = Array.isArray(medication.candidateOptions) ? medication.candidateOptions : [];
+        const remaining = medications.filter((item) => item.needsReview).length;
+        return (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-text-ink/50 px-4 py-6" role="dialog" aria-modal="true" aria-labelledby="review-medication-title">
+            <div className="max-h-[90vh] w-full max-w-2xl overflow-y-auto rounded-2xl border border-surface-container bg-card-surface p-6 shadow-2xl">
+              <div className="flex items-start justify-between gap-4">
+                <div>
+                  <span className="text-[11px] font-bold uppercase tracking-wider text-clinical-warning">No safe automatic match · {remaining} remaining</span>
+                  <h2 id="review-medication-title" className="mt-1 text-[21px] font-bold text-text-ink">Select the medicine heard as “{medication.originalExtracted}”</h2>
+                  <p className="mt-1 text-[13px] text-text-muted">Compare the transcript phrase and choose the correct database medicine. This selection will be recorded as clinician verified.</p>
+                </div>
+                <button onClick={reviewLater} className="rounded-full p-2 text-text-muted hover:bg-surface-container-low" aria-label="Review this medicine later">
+                  <span className="material-symbols-outlined">close</span>
+                </button>
+              </div>
+
+              <div className="mt-4 rounded-lg border border-surface-container bg-surface-container-low p-3">
+                <span className="text-[10px] font-bold uppercase tracking-wider text-text-muted">Transcript</span>
+                <p className="mt-1 text-[13px] font-medium text-text-ink">“{medication.quote}”</p>
+              </div>
+
+              <div className="mt-5">
+                <h3 className="text-[12px] font-bold uppercase tracking-wider text-primary">Best database options</h3>
+                {options.length > 0 ? (
+                  <div className="mt-2 grid gap-2 sm:grid-cols-2">
+                    {options.map((option: any, index: number) => (
+                      <button key={`${option.id || option.brand_name}-${index}`} onClick={() => handleReviewSelection(option)} className="rounded-xl border border-surface-container p-3 text-left transition-colors hover:border-primary hover:bg-container-tint">
+                        <div className="flex items-start justify-between gap-3">
+                          <span className="text-[14px] font-bold text-text-ink">{option.brand_name}</span>
+                          <span className="shrink-0 rounded bg-surface-container px-2 py-0.5 text-[10px] font-bold text-on-surface-variant">{Number(option.score || 0).toFixed(1)}</span>
+                        </div>
+                        <p className="mt-1 text-[11px] text-text-muted">{option.dosage_form || "Form unknown"} · {option.match_type || "Candidate"}</p>
+                        {(!option.compatible || option.conflicts?.length > 0) && (
+                          <p className="mt-1 text-[10px] font-semibold text-clinical-warning">{option.conflicts?.join("; ") || "Candidate conflicts with extracted details"}</p>
+                        )}
+                      </button>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="mt-2 rounded-lg bg-warning-bg p-3 text-[13px] font-medium text-clinical-warning">No suggested database candidates are available. Search the complete medicine database below.</p>
+                )}
+              </div>
+
+              <div className="mt-5 border-t border-surface-container pt-5">
+                <label htmlFor="review-medicine-search" className="text-[12px] font-bold uppercase tracking-wider text-primary">Search if none of these are correct</label>
+                <div className="relative mt-2">
+                  <span className="material-symbols-outlined pointer-events-none absolute left-3 top-2.5 text-[19px] text-text-muted">search</span>
+                  <input id="review-medicine-search" value={reviewSearchQuery} onChange={(event) => setReviewSearchQuery(event.target.value)} placeholder="Type at least 2 letters of the brand name" className="w-full rounded-lg border border-surface-container bg-card-surface py-2.5 pl-10 pr-10 text-[14px] text-text-ink outline-none focus:border-primary focus:ring-2 focus:ring-primary/20" />
+                  {reviewSearching && <span className="material-symbols-outlined absolute right-3 top-2.5 animate-spin text-[19px] text-primary">sync</span>}
+                </div>
+                {reviewSearchQuery.trim().length >= 2 && !reviewSearching && (
+                  <div className="mt-2 max-h-52 overflow-y-auto rounded-lg border border-surface-container p-1">
+                    {reviewSearchResults.length > 0 ? reviewSearchResults.map((result, index) => (
+                      <button key={`${typeof result === "string" ? result : result.brand_name}-${index}`} onClick={() => handleReviewSelection(result)} className="flex w-full items-center justify-between rounded-md px-3 py-2 text-left hover:bg-container-tint">
+                        <span className="text-[13px] font-bold text-text-ink">{typeof result === "string" ? result : result.brand_name}</span>
+                        <span className="material-symbols-outlined text-[17px] text-primary">add_circle</span>
+                      </button>
+                    )) : (
+                      <p className="px-3 py-4 text-center text-[12px] text-text-muted">No database medicines found for this search.</p>
+                    )}
+                  </div>
+                )}
+              </div>
+
+              <div className="mt-5 flex justify-end">
+                <button onClick={reviewLater} className="rounded-lg border border-surface-container px-4 py-2 text-[13px] font-bold text-text-ink hover:bg-surface-container-low">Review later</button>
+              </div>
+            </div>
+          </div>
+        );
+      })()}
+
+      {deleteMedicationId !== null && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-text-ink/40 px-4" role="dialog" aria-modal="true" aria-labelledby="delete-medication-title">
+          <div className="w-full max-w-md rounded-xl bg-card-surface p-6 shadow-2xl border border-surface-container">
+            <div className="flex items-start gap-3">
+              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-error-bg text-clinical-error">
+                <span className="material-symbols-outlined">delete</span>
+              </div>
+              <div>
+                <h2 id="delete-medication-title" className="text-[17px] font-bold text-text-ink">Remove medication?</h2>
+                <p className="mt-1 text-[13px] text-text-muted">This removes the medicine from the current draft. It does not change the transcript or database.</p>
+              </div>
+            </div>
+            <div className="mt-5 flex justify-end gap-3">
+              <button onClick={() => setDeleteMedicationId(null)} className="rounded-lg border border-surface-container px-4 py-2 text-[13px] font-bold text-text-ink hover:bg-surface-container-low">Cancel</button>
+              <button onClick={handleDelete} className="rounded-lg bg-clinical-error px-4 py-2 text-[13px] font-bold text-white hover:opacity-90">Remove</button>
+            </div>
+          </div>
+        </div>
+      )}
+      </div>
+    </section>
   );
 }

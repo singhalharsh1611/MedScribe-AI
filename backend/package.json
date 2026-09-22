@@ -6,7 +6,9 @@
   "scripts": {
     "start": "node dist/index.js",
     "dev": "nodemon src/index.ts",
-    "build": "tsc"
+    "build": "tsc",
+    "migrate": "ts-node src/scripts/migrate-full.ts",
+    "seed-local": "npx ts-node src/scripts/init-db-new.ts && npx ts-node 1mgDrugsScraper/scrape.ts --skip-salts && npx ts-node src/scripts/migrate-full.ts"
   },
   "dependencies": {
     "@types/cli-progress": "^3.11.6",

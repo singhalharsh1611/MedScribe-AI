@@ -8,7 +8,7 @@ const dbDir = path.resolve(__dirname, '..', 'databases');
 async function migrate() {
   const pgClient = new Client({
     connectionString: process.env.DATABASE_URL,
-    ssl: { rejectUnauthorized: false }
+    ssl: process.env.DATABASE_URL?.includes('localhost') ? false : { rejectUnauthorized: false }
   });
 
   await pgClient.connect();

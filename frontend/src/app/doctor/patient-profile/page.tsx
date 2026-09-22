@@ -16,7 +16,8 @@ export default function PatientProfilePage() {
   useEffect(() => {
     const patientId = localStorage.getItem("activePatientId");
     if (patientId) {
-      api.patients.get(parseInt(patientId)).then(data => {
+      const user = getUser();
+      api.patients.get(parseInt(patientId), user?.id).then(data => {
         setPatient(data.patient);
         setEncounters(data.encounters || []);
         setAppointments(data.appointments || []);
@@ -24,9 +25,27 @@ export default function PatientProfilePage() {
     } else setLoading(false);
   }, []);
 
-  const handleStartConsultation = () => {
+  const handleStartConsultation = async () => {
     setIsConnecting(true);
-    setTimeout(() => { router.push("/doctor/encounter/new"); }, 600);
+    try {
+      const user = getUser();
+      if (!user?.id || !user?.clinic_id || !patient?.id) {
+        setIsConnecting(false);
+        return;
+      }
+      const response = await api.encounters.create({
+        patient_id: patient.id,
+        doctor_id: user.id,
+        clinic_id: user.clinic_id,
+        chief_complaint: "",
+      });
+      localStorage.setItem("activeQueueEntry", JSON.stringify({ ...patient, status: "in_consultation" }));
+      localStorage.setItem("activeEncounter", JSON.stringify(response.encounter));
+      router.push("/doctor/encounter/new");
+    } catch (error) {
+      console.error(error);
+      setIsConnecting(false);
+    }
   };
 
   // Prescriptions from encounters (static fallback until prescription API is implemented)
@@ -38,30 +57,6 @@ export default function PatientProfilePage() {
 
   return (
     <div className="flex flex-col w-full pb-space-3xl gap-space-md">
-      {/* Top Breadcrumbs */}
-      <div className="flex flex-wrap items-center justify-between gap-y-space-xs py-space-sm">
-        <nav className="flex items-center gap-space-xs text-on-surface-variant text-[13px] font-semibold tracking-tight">
-          <Link href="/doctor/dashboard" className="hover:text-primary transition-colors flex items-center gap-1 no-underline">
-            <span className="material-symbols-outlined text-[16px]">stethoscope</span>
-            Doctor Workspace
-          </Link>
-          <span className="text-text-muted">/</span>
-          <span className="text-text-muted">Patient Directory</span>
-          <span className="text-text-muted">/</span>
-          <span className="text-text-ink font-semibold">Maya Lin Harrison</span>
-          <span className="bg-container-tint text-on-primary-fixed-variant px-space-xs py-0.5 rounded-full text-[11px] font-semibold">UHID-MH-2024-88412</span>
-        </nav>
-        <div className="flex items-center gap-space-sm">
-          <span className="flex items-center gap-1.5 px-space-sm py-1 rounded-full bg-success-bg text-clinical-success text-[11px] font-semibold">
-            <span className="w-2 h-2 rounded-full bg-clinical-success animate-pulse"></span>
-            Room 101 Audio Sync Calibrated
-          </span>
-          <div className="hidden sm:flex items-center gap-1 text-text-muted text-[11px] font-semibold">
-            <span className="material-symbols-outlined text-[15px]">schedule</span>
-            Intake finished 8 mins ago
-          </div>
-        </div>
-      </div>
 
       {/* Patient Hero Card */}
       <section className="rounded-xl bg-card-surface shadow-sm p-space-lg relative overflow-hidden border border-surface-container">
@@ -70,7 +65,7 @@ export default function PatientProfilePage() {
           <div className="flex flex-col sm:flex-row sm:items-center gap-space-lg">
             <div className="relative w-20 h-20 shrink-0">
               <div className="w-20 h-20 rounded-xl bg-gradient-to-tr from-primary-container to-accent-light flex items-center justify-center text-white text-[28px] font-bold shadow-sm">
-                ML
+                {patient ? `${patient.first_name?.[0] || ""}${patient.last_name?.[0] || ""}` : ""}
               </div>
               <div className="absolute -bottom-1 -right-1 p-1 bg-card-surface rounded-full shadow-sm">
                 <span className="w-3.5 h-3.5 rounded-full bg-clinical-success block"></span>
@@ -78,16 +73,13 @@ export default function PatientProfilePage() {
             </div>
             <div className="flex flex-col">
               <div className="flex flex-wrap items-center gap-x-space-sm gap-y-space-2xs">
-                <h1 className="text-[28px] font-bold text-text-ink tracking-tight">Maya Lin Harrison</h1>
-                <span className="px-space-xs py-0.5 rounded-md bg-secondary-fixed text-on-secondary-fixed text-[11px] font-semibold">Checked In • Token #T-107</span>
-                <span className="px-space-xs py-0.5 rounded-md bg-container-tint text-on-primary-fixed-variant text-[11px] font-semibold">Assigned: Dr. Eleanor Vance</span>
+                <h1 className="text-[28px] font-bold text-text-ink tracking-tight">{patient ? `${patient.first_name} ${patient.last_name}` : "Loading..."}</h1>
+                <span className="px-space-xs py-0.5 rounded-md bg-secondary-fixed text-on-secondary-fixed text-[11px] font-semibold">Checked In</span>
               </div>
               <div className="mt-space-2xs flex flex-wrap items-center gap-x-space-md gap-y-1 text-on-surface-variant text-[12px] font-semibold">
-                <span><strong className="text-text-ink font-semibold">32 yrs</strong> • Female</span>
-                <span>DOB: <strong className="text-text-ink font-semibold">Aug 14, 1991</strong></span>
-                <span>Blood Group: <strong className="text-primary font-bold">O+</strong></span>
-                <span className="flex items-center gap-1"><span className="material-symbols-outlined text-[14px]">call</span>+1 (555) 849-2041</span>
-                <span className="flex items-center gap-1"><span className="material-symbols-outlined text-[14px]">mail</span>maya.harrison@email.com</span>
+                <span>{patient?.gender || "Unknown Gender"}</span>
+                <span>DOB: <strong className="text-text-ink font-semibold">{patient?.date_of_birth ? new Date(patient.date_of_birth).toLocaleDateString() : "N/A"}</strong></span>
+                <span className="flex items-center gap-1"><span className="material-symbols-outlined text-[14px]">call</span>{patient?.phone || "No phone"}</span>
               </div>
               <div className="mt-space-sm flex flex-wrap items-center gap-space-xs">
                 <div className="flex items-center gap-1.5 px-space-sm py-1 rounded-md bg-error-bg text-clinical-error text-[11px] font-semibold">
@@ -106,10 +98,6 @@ export default function PatientProfilePage() {
             </div>
           </div>
           <div className="flex sm:flex-row lg:flex-col xl:flex-row items-center gap-space-sm shrink-0">
-            <button onClick={() => router.push("/doctor/encounter/new")} className="w-full sm:w-auto px-space-md py-3 rounded-lg bg-surface-container-high hover:bg-surface-dim text-text-ink text-[13px] font-semibold transition-all flex items-center justify-center gap-2 border border-surface-container-highest cursor-pointer">
-              <span className="material-symbols-outlined text-[18px]">draft</span>
-              New Blank Intake
-            </button>
             <button onClick={handleStartConsultation} disabled={isConnecting} className="w-full sm:w-auto px-space-lg py-3 rounded-lg bg-primary hover:bg-accent-dark text-on-primary text-[15px] font-bold transition-all shadow-md flex items-center justify-center gap-2 group cursor-pointer">
               <span className={`material-symbols-outlined text-[20px] ${isConnecting ? "animate-spin" : "group-hover:rotate-12 transition-transform"}`}>
                 {isConnecting ? "refresh" : "clinical_notes"}
@@ -142,7 +130,7 @@ export default function PatientProfilePage() {
 
       {/* Grid */}
       {activeTab === "Overview" && (
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-space-lg">
+        <div>
           {/* Left Column */}
           <div className="lg:col-span-7 flex flex-col gap-space-lg">
             <div className="rounded-xl bg-card-surface p-space-lg shadow-sm border border-surface-container relative overflow-hidden">
@@ -190,7 +178,7 @@ export default function PatientProfilePage() {
                     <p className="text-[11px] font-semibold text-text-muted">3 verified active prescriptions</p>
                   </div>
                 </div>
-                <button onClick={() => router.push("/doctor/encounter/active")} className="text-[13px] font-semibold text-primary hover:text-accent-dark flex items-center gap-1 cursor-pointer">
+                <button onClick={() => router.push("/doctor/encounter/new")} className="text-[13px] font-semibold text-primary hover:text-accent-dark flex items-center gap-1 cursor-pointer">
                   <span className="material-symbols-outlined text-[16px]">add_circle</span>
                   Add Rx via Voice
                 </button>
@@ -224,143 +212,105 @@ export default function PatientProfilePage() {
                   </span>
                   <div>
                     <h2 className="text-[18px] font-bold text-text-ink">Last Encounter Archive</h2>
-                    <p className="text-[11px] font-semibold text-text-muted">Annual Preventive Health Exam • July 12, 2024</p>
+                    <p className="text-[11px] font-semibold text-text-muted">{encounters.length > 0 ? new Date(encounters[0].started_at).toLocaleDateString() : "No past encounters"}</p>
                   </div>
                 </div>
-                <span className="px-space-xs py-1 rounded-full bg-success-bg text-clinical-success text-[11px] font-semibold flex items-center gap-1">
-                  <span className="material-symbols-outlined text-[14px]">verified</span>
-                  Signed SOAP Note
-                </span>
+                {encounters.length > 0 && encounters[0].status === 'completed' && (
+                  <span className="px-space-xs py-1 rounded-full bg-success-bg text-clinical-success text-[11px] font-semibold flex items-center gap-1">
+                    <span className="material-symbols-outlined text-[14px]">verified</span>
+                    Signed SOAP Note
+                  </span>
+                )}
               </div>
-              <div className="space-y-space-sm">
-                <div className="p-space-md rounded-lg bg-surface-container-low border border-surface-container">
-                  <div className="flex items-center justify-between mb-1.5">
-                    <span className="text-[15px] font-bold text-text-ink">Attending: Dr. Eleanor Vance, MD</span>
-                    <span className="text-[11px] font-semibold text-text-muted">Metropolitan Internal Clinic #4</span>
-                  </div>
-                  <p className="text-[14px] text-on-surface-variant font-medium leading-relaxed">
-                    Patient presented for standard yearly wellness review. Blood pressure well-maintained within normotensive brackets. Routine preventive lipid screen ordered and cleared. Discussed asthma action plan for fall transition; renewed emergency albuterol inhaler. Denied cardiovascular symptoms.
-                  </p>
-                  <div className="mt-space-sm flex flex-wrap items-center gap-space-xs text-[12px] font-semibold text-text-muted">
-                    <span className="bg-surface-bright px-2 py-0.5 rounded border border-surface-container">ICD-10 Z00.00</span>
-                    <span className="bg-surface-bright px-2 py-0.5 rounded border border-surface-container">ICD-10 J45.20</span>
-                    <span className="bg-surface-bright px-2 py-0.5 rounded border border-surface-container">Lisinopril Protocol: Inactive</span>
-                  </div>
-                </div>
-                <div className="p-space-md rounded-lg bg-surface-bright flex flex-col sm:flex-row sm:items-center justify-between gap-space-sm border border-surface-container">
-                  <div className="flex items-center gap-space-xs">
-                    <span className="material-symbols-outlined text-clinical-success text-[20px]">shield_with_heart</span>
-                    <div className="flex flex-col">
-                      <span className="text-[15px] font-bold text-text-ink">Immunization Status</span>
-                      <span className="text-[12px] font-semibold text-text-muted">Up to date per ACIP 2024</span>
+              {encounters.length > 0 ? (
+                <div className="space-y-space-sm">
+                  <div className="p-space-md rounded-lg bg-surface-container-low border border-surface-container">
+                    <div className="flex items-center justify-between mb-1.5">
+                      <span className="text-[15px] font-bold text-text-ink">Attending: Dr. {encounters[0].doctor_id}</span>
+                      <span className="text-[11px] font-semibold text-text-muted">Status: {encounters[0].status}</span>
+                    </div>
+                    <p className="text-[14px] text-on-surface-variant font-medium leading-relaxed">
+                      {encounters[0].notes || "No notes available for this encounter."}
+                    </p>
+                    <div className="mt-space-sm flex flex-wrap items-center gap-space-xs text-[12px] font-semibold text-text-muted">
+                      {encounters[0].diagnosis && <span className="bg-surface-bright px-2 py-0.5 rounded border border-surface-container">Dx: {encounters[0].diagnosis}</span>}
+                      {encounters[0].prescription && <span className="bg-surface-bright px-2 py-0.5 rounded border border-surface-container">Rx: {encounters[0].prescription}</span>}
                     </div>
                   </div>
-                  <div className="flex items-center gap-space-xs">
-                    <span className="px-space-xs py-1 rounded bg-container-tint text-primary text-[11px] font-semibold">Influenza Quad (Oct 2023)</span>
-                    <span className="px-space-xs py-1 rounded bg-container-tint text-primary text-[11px] font-semibold">Tdap Booster (2021)</span>
-                  </div>
                 </div>
-              </div>
+              ) : (
+                <p className="text-[14px] text-on-surface-variant">No encounter history found for this patient.</p>
+              )}
             </div>
           </div>
+        </div>
+      )}
 
-          {/* Right Column */}
-          <div className="lg:col-span-5 flex flex-col gap-space-lg">
-            <div className="rounded-xl bg-card-surface p-space-lg shadow-sm border border-surface-container">
-              <div className="flex items-center justify-between mb-space-md">
-                <div className="flex items-center gap-space-xs">
-                  <span className="w-8 h-8 rounded-lg bg-container-tint flex items-center justify-center text-primary">
-                    <span className="material-symbols-outlined text-[20px]">monitor_heart</span>
-                  </span>
+      {activeTab === "Appointments" && (
+        <div className="rounded-xl border border-surface-container bg-card-surface p-6 shadow-sm">
+          <h3 className="mb-4 text-[16px] font-bold text-text-ink">Recent Appointments</h3>
+          {appointments.length > 0 ? (
+            <div className="space-y-3">
+              {appointments.map((appointment) => (
+                <div key={appointment.id} className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-surface-container bg-surface-container-lowest p-4">
                   <div>
-                    <h2 className="text-[18px] font-bold text-text-ink">Current Vital Signs</h2>
-                    <p className="text-[11px] font-semibold text-text-muted">Recorded at 09:10 AM by Triage</p>
-                  </div>
-                </div>
-                <button className="text-[11px] font-semibold text-primary hover:text-accent-dark">History Graph</button>
-              </div>
-              <div className="grid grid-cols-2 gap-space-sm">
-                <div className="p-space-sm rounded-lg bg-surface-container-low flex flex-col border border-surface-container">
-                  <span className="text-[11px] font-semibold text-text-muted flex items-center justify-between">
-                    Blood Pressure
-                    <span className="w-2 h-2 rounded-full bg-clinical-success"></span>
-                  </span>
-                  <div className="mt-1 flex items-baseline gap-1">
-                    <span className="text-[28px] font-bold text-text-ink">118/76</span>
-                    <span className="text-[11px] font-semibold text-text-muted">mmHg</span>
-                  </div>
-                  <span className="text-[12px] font-semibold text-clinical-success mt-0.5">Optimal / Resting</span>
-                </div>
-                <div className="p-space-sm rounded-lg bg-surface-container-low flex flex-col border border-surface-container">
-                  <span className="text-[11px] font-semibold text-text-muted flex items-center justify-between">
-                    Heart Rate
-                    <span className="w-2 h-2 rounded-full bg-clinical-success"></span>
-                  </span>
-                  <div className="mt-1 flex items-baseline gap-1">
-                    <span className="text-[28px] font-bold text-text-ink">72</span>
-                    <span className="text-[11px] font-semibold text-text-muted">bpm</span>
-                  </div>
-                  <span className="text-[12px] font-semibold text-clinical-success mt-0.5">Normal Sinus</span>
-                </div>
-                <div className="p-space-sm rounded-lg bg-surface-container-low flex flex-col border border-surface-container">
-                  <span className="text-[11px] font-semibold text-text-muted flex items-center justify-between">
-                    SpO2 (Pulse Ox)
-                    <span className="w-2 h-2 rounded-full bg-clinical-success"></span>
-                  </span>
-                  <div className="mt-1 flex items-baseline gap-1">
-                    <span className="text-[28px] font-bold text-text-ink">99%</span>
-                    <span className="text-[11px] font-semibold text-text-muted">Room Air</span>
-                  </div>
-                  <span className="text-[12px] font-semibold text-clinical-success mt-0.5">No O2</span>
-                </div>
-                <div className="p-space-sm rounded-lg bg-surface-container-low flex flex-col border border-surface-container">
-                  <span className="text-[11px] font-semibold text-text-muted flex items-center justify-between">
-                    Resp Rate / BMI
-                    <span className="w-2 h-2 rounded-full bg-clinical-success"></span>
-                  </span>
-                  <div className="mt-1 flex items-baseline gap-1">
-                    <span className="text-[28px] font-bold text-text-ink">16</span>
-                    <span className="text-[11px] font-semibold text-text-muted">bpm • 22.4</span>
-                  </div>
-                  <span className="text-[12px] font-semibold text-text-muted mt-0.5">134 lbs • 5&apos;5&quot;</span>
-                </div>
-              </div>
-            </div>
-
-            <div className="rounded-xl bg-card-surface p-space-lg shadow-sm border border-surface-container">
-              <div className="flex items-center justify-between mb-space-sm">
-                <div className="flex items-center gap-space-xs">
-                  <span className="w-8 h-8 rounded-lg bg-secondary-fixed flex items-center justify-center text-primary">
-                    <span className="material-symbols-outlined text-[20px]">science</span>
-                  </span>
-                  <div>
-                    <h2 className="text-[18px] font-bold text-text-ink">Key Diagnostic Panels</h2>
-                    <p className="text-[11px] font-semibold text-text-muted">Metropolitan Central Pathology</p>
-                  </div>
-                </div>
-                <button className="text-[11px] font-semibold text-primary hover:text-accent-dark">View All</button>
-              </div>
-              <div className="space-y-space-xs">
-                <div className="p-space-sm rounded-lg bg-surface-container-low flex items-center justify-between border border-surface-container">
-                  <div className="flex flex-col">
-                    <span className="text-[15px] font-bold text-text-ink">CBC with Automated Diff</span>
-                    <span className="text-[12px] font-semibold text-text-muted">July 12, 2024 • WBC 6.8 • Hb 13.9</span>
-                  </div>
-                  <span className="px-space-xs py-1 rounded bg-success-bg text-clinical-success text-[11px] font-semibold">Within Limits</span>
-                </div>
-                <div className="p-space-sm rounded-lg bg-warning-bg/40 flex items-center justify-between border border-clinical-warning/20">
-                  <div className="flex flex-col">
-                    <div className="flex items-center gap-1">
-                      <span className="text-[15px] font-bold text-text-ink">Total IgE Antibody Panel</span>
-                      <span className="material-symbols-outlined text-clinical-warning text-[16px]">flag</span>
+                    <div className="font-bold text-text-ink">
+                      {new Date(appointment.appointment_time).toLocaleString("en-IN", { day: "2-digit", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit", hour12: true })}
                     </div>
-                    <span className="text-[12px] font-semibold text-on-surface-variant">July 12, 2024 • <strong>180 kU/L</strong> (Ref: &lt;100)</span>
+                    <div className="text-[13px] text-text-muted">
+                      Dr. {appointment.doctor_name || "Any"} - {appointment.reason_for_visit || appointment.reason || "General"}
+                    </div>
                   </div>
-                  <span className="px-space-xs py-1 rounded bg-warning-bg text-clinical-warning text-[11px] font-bold">Elevated</span>
+                  <div className="flex items-center gap-2">
+                    <span className={`rounded-full px-2.5 py-1 text-[11px] font-bold ${appointment.status === "completed" ? "bg-success-bg text-clinical-success" : "bg-container-tint text-primary"}`}>
+                      {appointment.status}
+                    </span>
+                    {appointment.prescription_id && (
+                      <Link
+                        href={`/consultation/review/document?id=${appointment.prescription_id}`}
+                        className="inline-flex items-center gap-1.5 rounded-lg bg-primary px-3 py-2 text-[12px] font-bold text-on-primary shadow-sm transition-colors hover:bg-accent-dark"
+                      >
+                        <span className="material-symbols-outlined text-[16px]">prescriptions</span>
+                        View Prescription
+                      </Link>
+                    )}
+                  </div>
                 </div>
-              </div>
+              ))}
             </div>
-          </div>
+          ) : (
+            <p className="py-8 text-center text-[14px] text-text-muted">No appointments found.</p>
+          )}
+        </div>
+      )}
+
+      {activeTab === "Prescriptions" && (
+        <div className="rounded-xl border border-surface-container bg-card-surface p-6 shadow-sm">
+          <h3 className="mb-4 text-[16px] font-bold text-text-ink">Saved Prescriptions</h3>
+          {encounters.some((encounter) => encounter.prescription_id) ? (
+            <div className="space-y-3">
+              {encounters.filter((encounter) => encounter.prescription_id).map((encounter) => (
+                <div key={encounter.id} className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-surface-container bg-surface-container-lowest p-4">
+                  <div>
+                    <p className="font-bold text-text-ink">{encounter.diagnosis || "Prescription"}</p>
+                    <p className="text-[12px] text-text-muted">
+                      {new Date(encounter.ended_at || encounter.started_at).toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" })}
+                      {encounter.doctor_name ? ` · Dr. ${encounter.doctor_name}` : ""}
+                    </p>
+                  </div>
+                  <Link
+                    href={`/consultation/review/document?id=${encounter.prescription_id}`}
+                    className="inline-flex items-center gap-1.5 rounded-lg bg-primary px-3 py-2 text-[12px] font-bold text-on-primary shadow-sm transition-colors hover:bg-accent-dark"
+                  >
+                    <span className="material-symbols-outlined text-[16px]">prescriptions</span>
+                    View Prescription
+                  </Link>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <p className="py-8 text-center text-[14px] text-text-muted">No saved prescriptions from your consultations.</p>
+          )}
         </div>
       )}
     </div>

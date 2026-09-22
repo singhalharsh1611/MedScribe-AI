@@ -22,26 +22,49 @@ export default function RequestPendingPage({ onNext }: { onNext: (step: string, 
       const data = await api.auth.me(userId);
       const u = data.user;
       
-      // If waiting for platform approval and just got it
-      if (u.verification_status === "approved" && (!user || user.verification_status === "pending" || !u.clinic_id)) {
-        // Wait, if they are already approved but waiting for clinic, we only proceed when clinic_id is present.
-        if (user && user.verification_status === "approved") {
-           // We are waiting for clinic approval
-           if (u.clinic_id) {
-             localStorage.setItem("user", JSON.stringify(u));
-             clearInterval(intervalRef.current);
-             onNext('approved');
-           }
-        } else {
-           // We were waiting for platform approval
-           localStorage.setItem("user", JSON.stringify(u));
-           clearInterval(intervalRef.current);
-           onNext('approved');
-        }
-      } else if (u.verification_status === "rejected") {
+      // Update local storage and state with latest user data
+      localStorage.setItem("user", JSON.stringify(u));
+      setUser(u);
+
+      if (u.verification_status === "rejected") {
         clearInterval(intervalRef.current);
         setStatus("rejected");
         onNext('rejected');
+        return;
+      }
+
+      // Check if they were waiting for platform approval and just got it
+      // But only if they haven't chosen a path yet (indicated by a missing joinRequest or clinic)
+      // Actually, if verification_status is approved but they have no clinic, they could be on the choose-path step,
+      // OR they could be waiting for clinic approval.
+      if (u.verification_status === "approved") {
+        if (!u.clinic_id) {
+          // They are approved by platform, but no clinic assigned yet.
+          // Let's check if they have a pending join request on the server.
+          try {
+            const { request } = await api.joinRequests.myRequest(u.id);
+            if (request && request.status === 'pending') {
+              // They are actively waiting for clinic admin approval. Keep polling.
+              return;
+            }
+            if (request && request.status === 'rejected') {
+              // They were rejected by the clinic administrator
+              clearInterval(intervalRef.current);
+              setStatus("rejected");
+              onNext('rejected', { clinic_name: request.clinic_name });
+              return;
+            }
+          } catch (e) {
+            // Ignore API error
+          }
+          // If no pending or rejected request, they should be moved to 'approved' (which takes them to choose-path)
+          clearInterval(intervalRef.current);
+          onNext('approved');
+        } else {
+          // They have a clinic_id! This means their join request was approved by the clinic admin.
+          clearInterval(intervalRef.current);
+          onNext('approved');
+        }
       }
     } catch {}
   };

@@ -1,9 +1,27 @@
 import { WebSocketServer, WebSocket } from 'ws';
 import http from 'http';
 import { logUsage } from './db.service';
+import { authenticateRequest } from '../middleware/auth.middleware';
 
 export const setupWebSocketServer = (server: http.Server) => {
-  const wss = new WebSocketServer({ server });
+  const wss = new WebSocketServer({ noServer: true });
+
+  server.on('upgrade', async (request, socket, head) => {
+    try {
+      const principal = await authenticateRequest(request as any);
+      if (!principal || (principal.kind !== 'superadmin' && !['doctor', 'admin'].includes(principal.role))) {
+        socket.write('HTTP/1.1 401 Unauthorized\r\nConnection: close\r\n\r\n');
+        socket.destroy();
+        return;
+      }
+      wss.handleUpgrade(request, socket, head, (ws) => {
+        wss.emit('connection', ws, request);
+      });
+    } catch {
+      socket.write('HTTP/1.1 500 Internal Server Error\r\nConnection: close\r\n\r\n');
+      socket.destroy();
+    }
+  });
 
   wss.on('connection', (ws: WebSocket) => {
     console.log('[WS] Client connected for live transcription');
@@ -20,7 +38,12 @@ export const setupWebSocketServer = (server: http.Server) => {
         if (data.type === 'start') {
           const apiKey = process.env.SARVAM_API_KEY || '';
           if (!apiKey) {
-             ws.send(JSON.stringify({ type: 'error', message: 'SARVAM_API_KEY missing on backend' }));
+             console.error('[STREAMING_PROVIDER_NOT_CONFIGURED] SARVAM_API_KEY is missing');
+             ws.send(JSON.stringify({
+               type: 'error',
+               code: 'STREAMING_UNAVAILABLE',
+               message: 'Live transcription is unavailable.',
+             }));
              return;
           }
           
@@ -57,7 +80,11 @@ export const setupWebSocketServer = (server: http.Server) => {
                 ws.send(JSON.stringify({ type: 'transcript', text: finalizedText }));
               } else if (res.event === 'error') {
                 console.error(`[WS] Sarvam Error (${res.code}): ${res.message}`);
-                ws.send(JSON.stringify({ type: 'error', message: res.message }));
+                ws.send(JSON.stringify({
+                  type: 'error',
+                  code: 'STREAMING_TRANSCRIPTION_FAILED',
+                  message: 'Unable to continue live transcription.',
+                }));
               }
             } catch(e) {
               console.error('[WS] Error parsing Sarvam response', e);
@@ -66,7 +93,11 @@ export const setupWebSocketServer = (server: http.Server) => {
 
           sarvamWs.on('error', (err) => {
              console.error('[WS] Sarvam WebSocket Error:', err);
-             ws.send(JSON.stringify({ type: 'error', message: 'Sarvam AI Streaming Error' }));
+             ws.send(JSON.stringify({
+               type: 'error',
+               code: 'STREAMING_TRANSCRIPTION_FAILED',
+               message: 'Unable to continue live transcription.',
+             }));
           });
           
           sarvamWs.on('close', () => {

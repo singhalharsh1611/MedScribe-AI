@@ -34,6 +34,9 @@ export default function CreateClinicPage({ onNext }: { onNext: (step: string, da
     { id: "oncology", label: "Comprehensive Cancer Institute", icon: "oncology" },
   ];
 
+  const selectedPracticeType = practiceTypesList.find((type) => type.id === practiceType);
+  const locationPreview = [city.trim(), state.trim(), zip.trim()].filter(Boolean).join(", ");
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError("");
@@ -244,13 +247,52 @@ export default function CreateClinicPage({ onNext }: { onNext: (step: string, da
               </div>
             </div>
             <div className="p-space-lg flex flex-col gap-space-md">
-              <div className="flex items-center justify-between pb-space-sm">
-                <span className="text-[13px] font-semibold text-text-muted uppercase">Deployment Region</span>
-                <span className="text-[15px] font-bold text-text-ink">US-West (N. California, FIPS)</span>
+              <div className="flex items-start justify-between gap-space-md pb-space-sm border-b border-surface-container">
+                <span className="text-[13px] font-semibold text-text-muted uppercase shrink-0">Practice Type</span>
+                <span className="text-[14px] font-bold text-text-ink text-right">
+                  {selectedPracticeType?.label || "Select a practice type"}
+                </span>
               </div>
-              <div className="bg-surface-container-low p-space-sm rounded-lg flex items-center gap-space-sm text-[12px] text-text-muted">
-                <span className="material-symbols-outlined text-clinical-success text-[18px]">verified</span>
-                <span>Direct Physician Governance Architecture Enforced</span>
+
+              <div className="flex items-start gap-space-sm">
+                <span className="material-symbols-outlined text-primary text-[19px] mt-0.5">location_on</span>
+                <div className="min-w-0">
+                  <p className="text-[12px] font-semibold uppercase text-text-muted">Clinic Address</p>
+                  <p className="text-[14px] font-bold text-text-ink break-words">
+                    {street.trim() || "Street address"}
+                  </p>
+                  <p className="text-[13px] text-on-surface-variant">
+                    {locationPreview || "City, State, PIN code"}
+                  </p>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-space-sm">
+                <div className="bg-surface-container-low p-space-sm rounded-lg flex items-start gap-space-xs min-w-0">
+                  <span className="material-symbols-outlined text-primary text-[18px]">call</span>
+                  <div className="min-w-0">
+                    <p className="text-[11px] font-semibold uppercase text-text-muted">Phone</p>
+                    <p className="text-[13px] font-bold text-text-ink truncate">
+                      {phone ? `+91 ${phone}` : "+91 Phone number"}
+                    </p>
+                  </div>
+                </div>
+                <div className="bg-surface-container-low p-space-sm rounded-lg flex items-start gap-space-xs min-w-0">
+                  <span className="material-symbols-outlined text-primary text-[18px]">mail</span>
+                  <div className="min-w-0">
+                    <p className="text-[11px] font-semibold uppercase text-text-muted">Email</p>
+                    <p className="text-[13px] font-bold text-text-ink truncate">
+                      {email.trim() || "Clinic email"}
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              <div className="bg-success-bg p-space-sm rounded-lg flex items-center gap-space-sm text-[12px] text-on-surface-variant">
+                <span className="material-symbols-outlined text-clinical-success text-[18px]">admin_panel_settings</span>
+                <span>
+                  Administrator: <strong className="text-text-ink">{userData.name || "Current practitioner"}</strong>
+                </span>
               </div>
             </div>
           </div>

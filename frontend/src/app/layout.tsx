@@ -28,8 +28,8 @@ export default function RootLayout({
           rel="stylesheet"
         />
       </head>
-      <body className="h-full antialiased font-sans">
-        <ThemeProvider attribute="class" defaultTheme="system" enableSystem>
+      <body className="h-full antialiased font-sans bg-background text-text-ink transition-colors duration-300">
+        <ThemeProvider attribute="class" defaultTheme="light" enableSystem={false}>
           <AppProvider>
             {children}
             <GlobalToast />

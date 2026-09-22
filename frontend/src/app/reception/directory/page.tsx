@@ -1,11 +1,13 @@
 "use client";
 import { useState, useEffect } from "react";
-import { useRouter } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import Link from "next/link";
 import { api, getUser } from "@/lib/api";
 
 export default function ReceptionDirectoryPage() {
   const router = useRouter();
+  const pathname = usePathname();
+  const patientProfileHref = pathname.startsWith("/admin") ? "/admin/patient-profile" : "/reception/patient-profile";
   const [user, setUser] = useState<any>(null);
   const [patients, setPatients] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -32,12 +34,8 @@ export default function ReceptionDirectoryPage() {
 
   return (
     <div className="min-h-screen bg-app-bg">
-      <header className="bg-card-surface border-b border-surface-container px-6 py-4 flex items-center justify-between">
+      <header className="px-6 py-4 flex items-center justify-between">
         <div className="flex items-center gap-3">
-          <Link href="/reception/dashboard" className="text-text-muted hover:text-primary transition-colors">
-            <span className="material-symbols-outlined">arrow_back</span>
-          </Link>
-          <h1 className="text-[16px] font-bold text-text-ink">Patient Directory</h1>
         </div>
         <Link href="/reception/register"
           className="flex items-center gap-2 px-4 py-2 bg-primary text-white rounded-lg text-[13px] font-bold hover:bg-accent-dark transition-colors">
@@ -72,13 +70,13 @@ export default function ReceptionDirectoryPage() {
               {filtered.map((p: any) => (
                 <div key={p.id}
                   className="px-5 py-4 flex items-center gap-4 hover:bg-surface-container-lowest transition-colors cursor-pointer"
-                  onClick={() => { localStorage.setItem("activePatientId", p.id); router.push("/doctor/patient-profile"); }}>
+                  onClick={() => { localStorage.setItem("activePatientId", p.id); router.push(patientProfileHref); }}>
                   <div className="w-10 h-10 rounded-full bg-primary-fixed flex items-center justify-center font-bold text-primary shrink-0">
                     {p.first_name?.[0]}{p.last_name?.[0]}
                   </div>
                   <div className="flex-1 min-w-0">
                     <p className="font-bold text-text-ink text-[14px]">{p.first_name} {p.last_name}</p>
-                    <p className="text-[12px] text-text-muted">{p.uhid} · {p.phone}</p>
+                    <p className="text-[12px] text-text-muted">{p.uhid} - {p.phone}</p>
                     {p.complaint && <p className="text-[12px] text-on-surface-variant mt-0.5 truncate">{p.complaint}</p>}
                   </div>
                   <div className="flex items-center gap-3 shrink-0">

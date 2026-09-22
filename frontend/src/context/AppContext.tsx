@@ -33,7 +33,10 @@ export interface Doctor {
 }
 
 export interface Toast {
-  message: string;
+  title?: string;
+  description?: string;
+  message?: string;
+  type?: 'success' | 'error' | 'warning' | 'info' | string;
   icon?: string;
 }
 
@@ -49,7 +52,7 @@ interface AppContextType {
   updatePatientStatus: (id: string, status: Patient["status"]) => void;
   callPatient: (id: string) => void;
   toast: Toast | null;
-  showToast: (message: string | { title?: string, description?: string, message?: string, type?: string }, icon?: string) => void;
+  showToast: (msg: string | Toast, icon?: string) => void;
 
   // Compatibility for older usages
   currentPatient?: Patient | null;
@@ -144,11 +147,11 @@ export function AppProvider({ children }: { children: ReactNode }) {
     setActivePatient(patient);
   }, [queue]);
 
-  const showToast = useCallback((msg: string | { title?: string, description?: string, message?: string, type?: string }, icon = "check_circle") => {
+  const showToast = useCallback((msg: string | Toast, icon?: string) => {
     if (typeof msg === 'string') {
-      setToast({ message: msg, icon });
+      setToast({ message: msg, icon: icon || "check_circle", type: "success" });
     } else {
-      setToast({ message: msg.message || msg.title || msg.description || "Notification", icon: msg.type === "error" ? "error" : "check_circle" });
+      setToast({ ...msg, icon: msg.icon || (msg.type === "error" ? "error" : "check_circle") });
     }
     setTimeout(() => setToast(null), 3500);
   }, []);

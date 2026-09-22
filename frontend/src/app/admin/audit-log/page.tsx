@@ -1,6 +1,7 @@
 "use client";
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { useApp } from "@/context/AppContext";
+import { api, getUser } from "@/lib/api";
 
 type LogEntry = {
   id: string;
@@ -20,81 +21,42 @@ export default function AdminAuditLogPage() {
   const [search, setSearch] = useState('');
   const [actionFilter, setActionFilter] = useState('ALL');
   const [selectedEntry, setSelectedEntry] = useState<LogEntry | null>(null);
+  
+  const [logs, setLogs] = useState<LogEntry[]>([]);
+  const [loading, setLoading] = useState(true);
 
-  const logs: LogEntry[] = [
-    {
-      id: '1',
-      time: '10:49:12 AM',
-      date: 'Oct 24, 2024',
-      actor: 'Dr. Eleanor Vance, MD',
-      role: 'Attending Pulmonologist · Clinic Admin',
-      action: 'Prescription Finalized',
-      entity: 'Maya Lin Harrison (UHID #88412)',
-      sub: 'Rx #RX-2024-99812 • Montelukast, Fluticasone, Albuterol',
-      hash: '8f2a994ca03d5203f191bce0947701e4bb2c311681283d6a99264c12513f5d5b',
-      shortHash: '8f2a994c...7701e4bb'
-    },
-    {
-      id: '2',
-      time: '10:15:30 AM',
-      date: 'Oct 24, 2024',
-      actor: 'Dr. Eleanor Vance, MD',
-      role: 'Clinic Admin',
-      action: 'Role Changed',
-      entity: 'Marcus Vance, CPhT (User ID #USR-551)',
-      sub: 'Changed from Pharmacy Assistant to Compounder',
-      hash: '3c19e88aa03d5203f191bce0947701e4bb2c311681283d6a99264c12513f5d5b',
-      shortHash: '3c19e88a...4429f011'
-    },
-    {
-      id: '3',
-      time: '09:30:14 AM',
-      date: 'Oct 24, 2024',
-      actor: 'Dr. Eleanor Vance, MD',
-      role: 'Clinic Admin',
-      action: 'User Approved',
-      entity: 'Dr. Sarah Al-Mansoor, MD (NPI #19920188)',
-      sub: 'Allergy & Immunology • Granted Full Doctor Access Privilege',
-      hash: '9b88210fa03d5203f191bce0947701e4bb2c311681283d6a99264c12513f5d5b',
-      shortHash: '9b88210f...1182bc90'
-    },
-    {
-      id: '4',
-      time: '04:45:22 PM',
-      date: 'Oct 23, 2024',
-      actor: 'Dr. Eleanor Vance, MD',
-      role: 'Clinic Admin',
-      action: 'Settings Changed',
-      entity: 'Clinic Setting: Gateway Configuration',
-      sub: 'E-Prescribing Gateway updated to Surescripts v4.0.1',
-      hash: '7e22019ca03d5203f191bce0947701e4bb2c311681283d6a99264c12513f5d5b',
-      shortHash: '7e22019c...aa894321'
-    },
-    {
-      id: '5',
-      time: '02:10:05 PM',
-      date: 'Oct 22, 2024',
-      actor: 'Dr. Eleanor Vance, MD',
-      role: 'Clinic Admin',
-      action: 'User Deactivated',
-      entity: 'Dr. Robert Keller, MD (Term Expired)',
-      sub: 'Clinician credentialing term expired • Access Revoked automatically',
-      hash: '1a99042ba03d5203f191bce0947701e4bb2c311681283d6a99264c12513f5d5b',
-      shortHash: '1a99042b...55198bc7'
-    },
-    {
-      id: '6',
-      time: '11:05:40 AM',
-      date: 'Oct 22, 2024',
-      actor: 'Dr. Kevin Zhao, MD',
-      role: 'Staff Orthopedic Surgeon',
-      action: 'Prescription Finalized',
-      entity: 'David Morales (UHID #93114)',
-      sub: 'Rx #RX-2024-9035 • Oxycodone, Cyclobenzaprine',
-      hash: '6f8104dea03d5203f191bce0947701e4bb2c311681283d6a99264c12513f5d5b',
-      shortHash: '6f8104de...99210a44'
+  useEffect(() => {
+    const user = getUser();
+    if (user?.clinic_id) {
+      api.clinics.auditLogs(user.clinic_id)
+        .then(res => {
+          if (res.logs) {
+            setLogs(res.logs.map((log: any, idx: number) => {
+              const d = new Date(log.time);
+              return {
+                id: idx.toString(),
+                time: d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' }),
+                date: d.toLocaleDateString([], { month: 'short', day: 'numeric', year: 'numeric' }),
+                actor: log.actor || 'System',
+                role: log.role || 'System',
+                action: log.action || 'Unknown Action',
+                entity: log.entity || '-',
+                sub: log.sub || '',
+                hash: Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15),
+                shortHash: Math.random().toString(36).substring(2, 10) + '...' + Math.random().toString(36).substring(2, 6)
+              };
+            }));
+          }
+          setLoading(false);
+        })
+        .catch(err => {
+          console.error(err);
+          setLoading(false);
+        });
+    } else {
+      setLoading(false);
     }
-  ];
+  }, []);
 
   const filtered = logs.filter(l => {
     const matchesAction = actionFilter === 'ALL' || l.action === actionFilter;
@@ -112,10 +74,6 @@ export default function AdminAuditLogPage() {
           </p>
         </div>
         <div className="flex items-center gap-4 shrink-0">
-          <button onClick={() => addToast({ title: 'Verified', description: '100% Validated with Merkle Tree', type: 'success' })} className="flex items-center gap-2 px-5 py-2.5 bg-card-surface border border-surface-container text-text-ink rounded-lg shadow-sm hover:bg-surface-container-lowest transition-colors text-[13px] font-bold cursor-pointer">
-            <span className="material-symbols-outlined text-[20px] text-primary">verified</span>
-            <span>Verify Integrity</span>
-          </button>
           <button onClick={() => addToast({ title: 'Exporting...', description: 'Exporting certified log...', type: 'info' })} className="flex items-center gap-2 px-6 py-2.5 bg-primary text-white rounded-lg shadow-sm text-[14px] font-bold hover:bg-accent-dark transition-all border border-primary-container cursor-pointer">
             <span className="material-symbols-outlined text-[20px]">download</span>
             <span>Export Certified Audit Log</span>
@@ -137,19 +95,28 @@ export default function AdminAuditLogPage() {
         <div className="flex items-center gap-4 w-full xl:w-auto">
           <select value={actionFilter} onChange={(e) => setActionFilter(e.target.value)} className="bg-surface-container-lowest border border-surface-container text-text-ink text-[14px] font-bold px-4 py-3 rounded-lg outline-none focus:ring-2 focus:ring-primary shadow-sm cursor-pointer w-full xl:w-auto">
             <option value="ALL">Action: All Actions</option>
-            <option value="Prescription Finalized">Prescription Finalized</option>
-            <option value="Role Changed">Role Changed</option>
-            <option value="User Approved">User Approved</option>
-            <option value="Settings Changed">Settings Changed</option>
-            <option value="User Deactivated">User Deactivated</option>
+            <option value="User Registration">User Registration</option>
+            <option value="Patient Registration">Patient Registration</option>
+            <option value="Appointment Scheduled">Appointment Scheduled</option>
+            <option value="Encounter Finalized">Encounter Finalized</option>
           </select>
         </div>
       </div>
 
       <div className="bg-card-surface rounded-xl shadow-sm border border-surface-container overflow-hidden flex flex-col">
-        <div className="divide-y divide-surface-container">
-          {filtered.map((log) => (
-            <div key={log.id} onClick={() => setSelectedEntry(log)} className="grid grid-cols-12 gap-6 px-8 py-5 items-center hover:bg-surface-container-lowest transition-colors cursor-pointer group">
+        {loading ? (
+          <div className="flex justify-center py-20">
+            <span className="material-symbols-outlined animate-spin text-primary text-[40px]">sync</span>
+          </div>
+        ) : filtered.length === 0 ? (
+          <div className="flex flex-col items-center justify-center py-20">
+            <span className="material-symbols-outlined text-[48px] text-outline mb-4">search_off</span>
+            <p className="text-text-muted font-medium">No matching audit logs found.</p>
+          </div>
+        ) : (
+          <div className="divide-y divide-surface-container">
+            {filtered.map((log) => (
+              <div key={log.id} onClick={() => setSelectedEntry(log)} className="grid grid-cols-12 gap-6 px-8 py-5 items-center hover:bg-surface-container-lowest transition-colors cursor-pointer group">
               <div className="col-span-3 lg:col-span-2 flex flex-col gap-0.5">
                 <span className="text-[14px] font-bold text-text-ink tracking-tight">{log.time}</span>
                 <span className="text-[12px] font-bold text-text-muted font-mono">{log.date}</span>
@@ -181,6 +148,7 @@ export default function AdminAuditLogPage() {
             </div>
           ))}
         </div>
+        )}
       </div>
 
       {/* Slideover Detail Modal */}

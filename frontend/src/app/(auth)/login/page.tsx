@@ -1,8 +1,16 @@
 "use client";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useState, useRef } from "react";
-import { api } from "@/lib/api";
+import { useEffect, useState, useRef } from "react";
+import { api, ApiError, clearUser, getUser, setUser } from "@/lib/api";
+
+const homeForUser = (user: any) => {
+  if (user.pin_reset_required) return "/reset-pin";
+  if (user.verification_status === "pending" || user.verification_status === "rejected" || !user.clinic_id) return "/register";
+  if (user.role === "admin") return "/admin/overview";
+  if (user.role === "receptionist" || user.role === "compounder") return "/reception/dashboard";
+  return "/doctor/dashboard";
+};
 
 export default function LoginPage() {
   const router = useRouter();
@@ -11,20 +19,33 @@ export default function LoginPage() {
   const inputRefs = useRef<(HTMLInputElement | null)[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
-  const { useEffect } = require("react");
+  const [checkingSession, setCheckingSession] = useState(true);
 
   useEffect(() => {
-    const userStr = localStorage.getItem('user');
-    if (userStr) {
-      const user = JSON.parse(userStr);
-      if (user && user.id) {
-        if (!user.clinic_id) router.replace("/choose-path");
-        else if (user.role === 'admin') router.replace("/admin/overview");
-        else if (user.role === 'receptionist') router.replace("/reception/dashboard");
-        else router.replace("/doctor/dashboard");
-      }
+    const storedUser = getUser();
+    if (!storedUser?.id) {
+      setCheckingSession(false);
+      return;
     }
-  }, []);
+
+    let cancelled = false;
+    api.auth.me(Number(storedUser.id))
+      .then((response: any) => {
+        if (cancelled) return;
+        const currentUser = { ...storedUser, ...response.user };
+        setUser(currentUser);
+        router.replace(homeForUser(currentUser));
+      })
+      .catch((sessionError: unknown) => {
+        if (cancelled) return;
+        if (sessionError instanceof ApiError && [401, 403, 404].includes(sessionError.status)) {
+          clearUser();
+        }
+        setCheckingSession(false);
+      });
+
+    return () => { cancelled = true; };
+  }, [router]);
 
   const handlePinChange = (index: number, value: string) => {
     if (!/^\d*$/.test(value)) return;
@@ -57,17 +78,8 @@ export default function LoginPage() {
     try {
       const data = await api.auth.login({ phone: mobile, pin: pinString });
       const user = data.user;
-      localStorage.setItem('user', JSON.stringify(user));
-      // Role-based routing
-      if (user.verification_status === "pending" || user.verification_status === "rejected" || !user.clinic_id) {
-        router.replace("/register");
-      } else if (user.role === 'admin') {
-        router.replace("/admin/overview");
-      } else if (user.role === 'receptionist') {
-        router.replace("/reception/dashboard");
-      } else {
-        router.replace("/doctor/dashboard");
-      }
+      setUser(user);
+      router.replace(homeForUser(user));
     } catch (err: any) {
       setError('Login failed: ' + err.message);
     } finally {
@@ -75,16 +87,26 @@ export default function LoginPage() {
     }
   };
 
+  if (checkingSession) {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-app-bg">
+        <div className="flex items-center gap-2 text-[14px] font-semibold text-text-muted">
+          <span className="material-symbols-outlined animate-spin text-[22px] text-primary">sync</span>
+          Restoring your session...
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="w-full max-w-7xl mx-auto px-4 md:px-margin-desktop py-space-xl min-h-screen flex flex-col items-center justify-center animate-glide-in opacity-0">
-      <div className="w-full max-w-xl flex flex-col gap-space-xl animate-glide-in opacity-0">
-        <div className="w-full bg-card-surface rounded-xl shadow-md p-space-lg md:p-space-2xl flex flex-col gap-space-lg relative overflow-hidden transition-all duration-500">
+      <div className="w-full max-w-md flex flex-col gap-space-xl animate-glide-in opacity-0">
+        <div className="w-full bg-card-surface rounded-xl shadow-md p-space-lg md:p-space-xl flex flex-col gap-space-lg relative overflow-hidden transition-all duration-500">
           <div className="flex flex-col gap-space-sm text-center">
             <div className="mx-auto w-16 h-16 rounded-2xl bg-container-tint text-primary flex items-center justify-center mb-space-xs shadow-sm">
               <span className="material-symbols-outlined text-[32px]">clinical_notes</span>
             </div>
-            <h1 className="text-[28px] font-bold text-text-ink tracking-tight">Doctor Login</h1>
-            <p className="text-[14px] text-on-surface-variant">Sign in to access your clinical workspace.</p>
+            <h1 className="text-[28px] font-bold text-text-ink tracking-tight">User Login</h1>
           </div>
 
           {error && (
@@ -119,7 +141,7 @@ export default function LoginPage() {
               <div className="flex justify-between items-center">
                 <label className="text-[13px] font-semibold text-text-ink">6-Digit Access PIN</label>
               </div>
-              <div className="flex gap-2 sm:gap-4 justify-between max-w-sm mx-auto">
+              <div className="flex gap-2 sm:gap-3 justify-between w-full">
                 {pin.map((digit, i) => (
                   <input
                     key={i}
@@ -129,7 +151,7 @@ export default function LoginPage() {
                     value={digit}
                     onChange={(e) => handlePinChange(i, e.target.value)}
                     onKeyDown={(e) => handleKeyDown(i, e)}
-                    className="w-12 h-14 sm:w-14 sm:h-16 text-center text-[24px] font-bold rounded-lg bg-surface-container-lowest border border-outline-variant shadow-sm focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary transition-all text-text-ink"
+                    className="w-12 h-14 sm:w-12 sm:h-14 text-center text-[24px] font-bold rounded-lg bg-surface-container-lowest border border-outline-variant shadow-sm focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary transition-all text-text-ink"
                   />
                 ))}
               </div>

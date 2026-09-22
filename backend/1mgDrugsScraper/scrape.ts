@@ -17,7 +17,7 @@ const HEADERS = {
 
 const pool = new Pool({
     connectionString: process.env.DATABASE_URL,
-    ssl: { rejectUnauthorized: false }
+    ssl: process.env.DATABASE_URL?.includes('localhost') ? false : { rejectUnauthorized: false }
 });
 
 async function getStats() {
@@ -159,6 +159,13 @@ async function runScraper() {
     if (parseInt(stats.total) === 0) {
         console.log(`\n⚠️ Database is empty. Fetching all sitemaps...`);
         await fetchAllSitemaps();
+    }
+
+    const skipSalts = process.argv.includes('--skip-salts');
+    if (skipSalts) {
+        console.log(`\n⏭️ Skipping salt scraping step (--skip-salts flag provided).`);
+        await pool.end();
+        return;
     }
 
     const newStats = await getStats();

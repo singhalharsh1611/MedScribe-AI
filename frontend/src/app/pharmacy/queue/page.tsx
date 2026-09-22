@@ -1,139 +1,63 @@
 "use client";
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useApp } from "@/context/AppContext";
+import { api, getUser } from "@/lib/api";
 
 export default function PharmacyQueuePage() {
   const router = useRouter();
   const { showToast } = useApp();
   const [activeTab, setActiveTab] = useState("pending");
   const [searchQuery, setSearchQuery] = useState("");
+  const [orders, setOrders] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
 
-  const orders = [
-    {
-      id: "RX-2024-9041",
-      name: "Maya Lin Harrison",
-      uhid: "UHID-88219",
-      ageGender: "34 yrs · Female · Room 402-B · ER Referral",
-      doctor: "Dr. Eleanor Vance, MD",
-      doctorRole: "Chief Pulmonologist · Attending",
-      time: "10:49 AM · 6 mins ago",
-      status: "Pending Dispense",
-      statusColor: "text-clinical-warning",
-      statusBg: "bg-warning-bg",
-      indicatorColor: "bg-clinical-warning",
-      img: "https://lh3.googleusercontent.com/aida-public/AB6AXuB-3QMECKnep9kHfc964vzk8ImNSPYenlaiRQuC_TDkeh3_AxVe44EoIfFuPr-_sYfcKvPXW1XqQz-mWxkCzhwBedADKjNVxfDLDHwOOjYob3UuKPCYZBsTgXxYrdtWSuSX-CK4zHa5SuGYO8kG-08CxoUpuYe_TZHYv0pYGyRyZ_mNf8JugclM_ng-tyVqLCQ0K7strYnG3i97Y-9o8Qy5SiVcEb5C1Ij_5YmADeRZZx1sWcUzvnX0BQ",
-      regimen: [
-        { name: "Montelukast", spec: "10mg Oral" },
-        { name: "Fluticasone Propionate", spec: "50mcg Spray" },
-        { name: "Albuterol Sulfate", spec: "HFA 90mcg Inhaler" },
-      ],
-      highCheck: true,
-      tab: "pending",
-      canDispense: true,
-    },
-    {
-      id: "RX-2024-9038",
-      name: "Arthur Pendelton",
-      uhid: "UHID-71904",
-      ageGender: "68 yrs · Male · Cardiology Suite C",
-      doctor: "Dr. Sarah Al-Mansoor, MD",
-      doctorRole: "Interventional Cardiology",
-      time: "10:32 AM · 23 mins ago",
-      status: "Compounding",
-      statusColor: "text-on-secondary-container",
-      statusBg: "bg-secondary-container/40",
-      indicatorColor: "bg-primary",
-      img: "https://lh3.googleusercontent.com/aida-public/AB6AXuCoBfB2z_Cp8Lo8nm2Ago4mjKa_-Vhl1ek_u58BZo-IDOmgOwYEags3bRGdmh8XSSmKGkblzDDWOXPREK3TacV9ujOxHgk3kMVMvAouZyVE826KyM-IhSdoO3e30Nm0q7JJDXIWWve06dPThgtcXgMwJovpKL_tP_y5c_5uUkIE3rW_HSvKOlkP4WM__koTXAopnJ9cqVHRoCkVxuxMs2vCk3tycYA1KGbeiOXqS4bFTFt3pyPNHqsbYA",
-      regimen: [
-        { name: "Carvedilol Extended", spec: "25mg Slow-Release" },
-        { name: "Potassium Chloride", spec: "20 mEq Microcaps" },
-      ],
-      tab: "compounding",
-      podAction: true,
-    },
-    {
-      id: "RX-2024-9035",
-      name: "David Morales",
-      uhid: "UHID-93114",
-      ageGender: "42 yrs · Male · Orthopedic Outpatient",
-      doctor: "Dr. Kevin Zhao, MD",
-      doctorRole: "Orthopedic Surgery / Trauma",
-      time: "10:15 AM · 40 mins ago",
-      status: "Pending Witness",
-      statusColor: "text-clinical-warning",
-      statusBg: "bg-warning-bg",
-      indicatorColor: "bg-clinical-warning",
-      img: "https://lh3.googleusercontent.com/aida-public/AB6AXuBDivfZnPQJBIBBJFyRyGIxkIQNdHs1NUrVQwiGDD2HjuWybQgRVX67nJcW4qP5MC01ROPKc18ARk-syUO7uqrABJ5SdOPa7suF1Z9BTWBMDZdvOYPLRTMxehiN2qgIULWLKxFQJY5ff2CWGKkAhY3RIlqBvQoAwdDJ5767Kz_H_6YBxbQN6FaxDYtNLCDcLrlU1psV13k8U7fFUl3g4GoRixwHsIwhKTIshM6x-0vES0Ir0CaTQVN9gg",
-      regimen: [
-        { name: "Oxycodone / APAP", spec: "5mg/325mg (Schedule II)", alert: true },
-        { name: "Cyclobenzaprine", spec: "10mg Oral" },
-      ],
-      tab: "pending",
-      dualSign: true,
-    },
-    {
-      id: "RX-2024-9029",
-      name: "Elena Rostova",
-      uhid: "UHID-40291",
-      ageGender: "29 yrs · Female · Endocrinology Clinic",
-      doctor: "Dr. Eleanor Vance, MD",
-      doctorRole: "Staff Physician",
-      time: "09:50 AM · 1 hr ago",
-      status: "Ready for Pickup",
-      statusColor: "text-clinical-success",
-      statusBg: "bg-success-bg",
-      indicatorColor: "bg-clinical-success",
-      initials: "ER",
-      regimen: [
-        { name: "Insulin Glargine", spec: "100 units/mL Soln (Cold Chain)" },
-        { name: "BD Nano Pen Needles", spec: "32G 4mm" },
-      ],
-      tab: "pickup",
-      pickupAction: true,
-    },
-    {
-      id: "RX-2024-9022",
-      name: "Marcus Brody",
-      uhid: "UHID-51002",
-      ageGender: "51 yrs · Male · Nephrology Ward 2",
-      doctor: "Dr. Sarah Al-Mansoor, MD",
-      doctorRole: "Attending Specialist",
-      time: "09:20 AM · 1.5 hrs ago",
-      status: "Pending Dispense",
-      statusColor: "text-clinical-warning",
-      statusBg: "bg-warning-bg",
-      indicatorColor: "bg-clinical-warning",
-      initials: "MB",
-      regimen: [
-        { name: "Levofloxacin", spec: "250mg q48h (Renal Dosed)" },
-        { name: "Sodium Bicarbonate", spec: "650mg Tablets" },
-      ],
-      tab: "pending",
-      verifyDose: true,
-    },
-    {
-      id: "RX-2024-9011",
-      name: "Claire Dupont",
-      uhid: "UHID-32980",
-      ageGender: "19 yrs · Female · Pediatric Allergy Outpatient",
-      doctor: "Dr. Kevin Zhao, MD",
-      doctorRole: "Allergy & Immunology",
-      time: "08:44 AM · Dispensed",
-      status: "Dispensed",
-      statusColor: "text-text-muted",
-      statusBg: "bg-surface-container",
-      indicatorColor: "bg-surface-container-highest",
-      initials: "CD",
-      regimen: [
-        { name: "Epinephrine Auto-Injector 0.3mg", crossed: true },
-        { name: "Cetirizine HCl 10mg", crossed: true },
-      ],
-      tab: "dispensed",
-      auditAction: true,
-    },
-  ];
+  useEffect(() => {
+    const load = async () => {
+      const user = getUser();
+      if (!user?.clinic_id) {
+        setLoading(false);
+        return;
+      }
+      try {
+        const encRes = await api.encounters.list({ clinicId: user.clinic_id }).catch(() => ({ encounters: [] }));
+        const encData = encRes.encounters || [];
+        const withRx = encData.filter((e: any) => e.prescription || e.prescriptions).map((enc: any) => {
+          let rxData: any = {};
+          if (typeof enc.prescription === 'string') {
+            try { rxData = JSON.parse(enc.prescription); } catch (e) {}
+          } else { rxData = enc.prescription || enc.prescriptions || {}; }
+
+          const meds = rxData.medications || rxData.drugs || [];
+          return {
+            id: `RX-${enc.id}`,
+            name: enc.patient_name || enc.patient?.name || 'Unknown Patient',
+            uhid: `UHID-${enc.patient_id || 'UNKNOWN'}`,
+            ageGender: 'Patient',
+            doctor: `Dr. ${enc.doctor_name || 'Doctor'}`,
+            doctorRole: 'Attending',
+            time: new Date(enc.date || enc.created_at || Date.now()).toLocaleDateString(),
+            status: 'Pending Dispense',
+            statusColor: 'text-clinical-warning',
+            statusBg: 'bg-warning-bg',
+            indicatorColor: 'bg-clinical-warning',
+            regimen: meds.map((m: any) => ({ name: m.name || m.drug, spec: m.dosage || '' })),
+            highCheck: false,
+            tab: 'pending',
+            canDispense: true,
+            initials: (enc.patient_name || 'U').substring(0, 2).toUpperCase()
+          };
+        });
+        setOrders(withRx);
+      } catch (err) {
+        console.error(err);
+      } finally {
+        setLoading(false);
+      }
+    };
+    load();
+  }, []);
 
   const filteredOrders = orders.filter((o) => {
     const matchesSearch =
@@ -350,7 +274,7 @@ export default function PharmacyQueuePage() {
             <div className={`absolute left-0 top-0 bottom-0 w-1.5 ${order.indicatorColor}`}></div>
 
             {/* Patient & Order Identification */}
-            <div className="flex items-start gap-4 min-w-[300px] pl-3">
+            <div className="flex min-w-0 items-start gap-4 pl-3 xl:min-w-[300px]">
               <div className="relative w-14 h-14 rounded-full overflow-hidden shrink-0 bg-primary-fixed flex items-center justify-center border border-surface-container-highest shadow-sm">
                 {order.img ? (
                   <img className="w-full h-full object-cover" alt={order.name} src={order.img} />
@@ -387,7 +311,7 @@ export default function PharmacyQueuePage() {
             </div>
 
             {/* Prescriber Info */}
-            <div className="flex items-center gap-3 min-w-[240px]">
+            <div className="flex min-w-0 items-center gap-3 xl:min-w-[240px]">
               <div className="w-10 h-10 rounded-full bg-surface-container-low border border-surface-container flex items-center justify-center text-primary shrink-0 shadow-sm">
                 <span className="material-symbols-outlined text-[20px]">stethoscope</span>
               </div>
@@ -412,7 +336,7 @@ export default function PharmacyQueuePage() {
                 )}
               </div>
               <div className="flex flex-wrap gap-2">
-                {order.regimen.map((med, idx) => (
+                {order.regimen.map((med: any, idx: number) => (
                   <span
                     key={idx}
                     className={`text-[12px] px-3 py-1.5 rounded-md shadow-sm border ${
@@ -428,7 +352,7 @@ export default function PharmacyQueuePage() {
             </div>
 
             {/* Status Tag */}
-            <div className="min-w-[160px] flex justify-start xl:justify-center">
+            <div className="flex min-w-0 justify-start xl:min-w-[160px] xl:justify-center">
               <div
                 className={`inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full ${order.statusBg} ${order.statusColor} text-[12px] font-bold shadow-sm`}
               >

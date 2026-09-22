@@ -1,27 +1,60 @@
 "use client";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useApp } from "@/context/AppContext";
+import { api, getUser } from "@/lib/api";
 
 export default function PatientCalledPage() {
   const router = useRouter();
   const { queue, updatePatientStatus } = useApp();
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
 
-  // Get first in consultation or last called (for demo)
-  const patient = queue.find((p) => p.status === "in_consultation") || queue[0];
+  const [patient, setPatient] = useState<any>(null);
 
-  const handleStart = () => {
+  useEffect(() => {
+    const data = localStorage.getItem("activeQueueEntry");
+    if (data) {
+      try { setPatient(JSON.parse(data)); } catch (e) {}
+    }
+  }, []);
+
+  const handleStart = async () => {
+    if (!patient) return;
     setLoading(true);
-    setTimeout(() => {
-      setLoading(false);
+    setError("");
+    try {
+      const user = getUser();
+      let activeEncounter = null;
+      try {
+        activeEncounter = JSON.parse(localStorage.getItem("activeEncounter") || "null");
+      } catch {}
+
+      if (!activeEncounter || String(activeEncounter.queue_id) !== String(patient.id)) {
+        const response = await api.encounters.create({
+          patient_id: patient.patient_id,
+          doctor_id: patient.doctor_id || user?.id,
+          clinic_id: patient.clinic_id || user?.clinic_id,
+          chief_complaint: patient.complaint || "",
+        });
+        activeEncounter = { ...response.encounter, queue_id: patient.id };
+        localStorage.setItem("activeEncounter", JSON.stringify(activeEncounter));
+      }
+
+      await api.queue.updateStatus(patient.id, "in_consultation");
+      localStorage.setItem("activeQueueEntry", JSON.stringify({ ...patient, status: "in_consultation" }));
       router.push("/doctor/encounter/new");
-    }, 600);
+    } catch (startError: any) {
+      setError(startError.message || "Could not start the consultation");
+      setLoading(false);
+    }
   };
 
   const handleReturn = () => {
-    if (patient) updatePatientStatus(patient.id, "waiting");
+    if (patient) {
+      api.queue.updateStatus(patient.id, "waiting").catch(() => {});
+    }
     router.push("/doctor/dashboard");
   };
 
@@ -41,7 +74,7 @@ export default function PatientCalledPage() {
           </div>
 
           <h1 className="text-[32px] font-bold text-text-ink tracking-tight mb-space-2xs">
-            {patient?.name || "Patient"} is being called
+            {patient ? (patient.first_name ? `${patient.first_name} ${patient.last_name}` : patient.name) : "Patient"} is being called
           </h1>
           <p className="text-[16px] text-on-surface-variant max-w-md">
             Please wait for the patient to arrive at <span className="font-bold text-text-ink">Room 101</span>.
@@ -55,7 +88,7 @@ export default function PatientCalledPage() {
                 #{patient?.token || "T-000"}
               </span>
               <div className="flex flex-col min-w-0">
-                <span className="font-bold text-[16px] text-text-ink truncate">{patient?.name || "Marcus Chen"}</span>
+                <span className="font-bold text-[16px] text-text-ink truncate">{patient ? (patient.first_name ? `${patient.first_name} ${patient.last_name}` : patient.name) : "Unknown Patient"}</span>
                 <span className="text-[12px] text-on-surface-variant truncate">
                   {patient?.complaint || "Routine Checkup"}
                 </span>
@@ -86,6 +119,7 @@ export default function PatientCalledPage() {
             <span>Return to Queue</span>
           </button>
         </div>
+        {error && <p className="px-space-xl pb-space-lg text-center text-[13px] font-semibold text-clinical-error">{error}</p>}
       </div>
     </div>
   );

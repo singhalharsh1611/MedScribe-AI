@@ -3,15 +3,38 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useApp } from "@/context/AppContext";
 
+import { useState, useEffect } from "react";
+import { api, getUser } from "@/lib/api";
+
 export default function DoctorSidebar() {
   const pathname = usePathname();
-  const { queue } = useApp();
-  const waitingCount = queue.filter((p: any) => p.status === "waiting").length;
+  const [waitingCount, setWaitingCount] = useState(0);
+
+  useEffect(() => {
+    const isConsultationRoute = pathname.startsWith("/consultation") ||
+      pathname.startsWith("/doctor/encounter");
+    if (isConsultationRoute) return;
+
+    const fetchQ = async () => {
+      try {
+        const u = getUser();
+        if (u?.clinic_id) {
+          const res = await api.queue.get(u.clinic_id, u.id);
+          setWaitingCount((res.queue || []).filter((p: any) => p.status === "waiting").length);
+        }
+      } catch (e) {}
+    };
+    fetchQ();
+    const interval = setInterval(fetchQ, 5000);
+    return () => clearInterval(interval);
+  }, [pathname]);
+
   const isQueueEmpty = waitingCount === 0;
 
   const isActive = (path: string) => {
     if (path === "/doctor/dashboard" && pathname === "/doctor/dashboard") return true;
-    if (path !== "/doctor/dashboard" && pathname.startsWith(path)) return true;
+    if (path === "/consultation" && (pathname.startsWith("/consultation") || pathname.startsWith("/doctor/encounter/new"))) return true;
+    if (path !== "/doctor/dashboard" && path !== "/consultation" && pathname.startsWith(path)) return true;
     return false;
   };
 
@@ -19,11 +42,11 @@ export default function DoctorSidebar() {
     `flex items-center justify-between px-3 py-2.5 rounded-lg transition-all group ${
       isActive(path)
         ? "bg-primary-container text-on-primary font-bold shadow-sm"
-        : "text-on-surface-variant hover:bg-surface-container-high hover:text-on-surface"
+        : "text-on-surface-variant hover:bg-surface-container-high hover:text-on-surface font-medium"
     }`;
 
   return (
-    <aside className="fixed left-0 top-16 bottom-0 w-72 bg-card-surface shadow-[0_1px_8px_rgba(7,12,25,0.04)] z-30 flex flex-col justify-between p-gutter-desktop overflow-y-auto">
+    <aside className="fixed left-0 top-16 bottom-0 w-72 bg-card-surface shadow-[0_1px_8px_rgba(7,12,25,0.04)] z-30 hidden lg:flex flex-col justify-between p-gutter-desktop overflow-y-auto border-r border-surface-container">
       <div className="space-y-space-lg">
         <div className="px-2">
           <p className="text-[11px] font-semibold uppercase tracking-wider text-on-surface-variant">DOCTOR WORKSPACE</p>
@@ -60,11 +83,22 @@ export default function DoctorSidebar() {
           <Link href="/doctor/patients" className={navLinkClass("/doctor/patients")}>
             <div className="flex items-center gap-3">
               <span className="material-symbols-outlined text-[20px]">folder_shared</span>
-              <span className="text-[14px]">Recent Patients</span>
+              <span className="text-[14px]">My Patients</span>
             </div>
           </Link>
 
-          <Link href="/consultation/voice/listening" className={navLinkClass("/consultation")}>
+          <Link href="/doctor/walk-in" className={navLinkClass("/doctor/walk-in")}>
+            <div className="flex items-center gap-3">
+              <span className="material-symbols-outlined text-[20px]">person_add</span>
+              <span className="text-[14px]">Start Walk-in</span>
+            </div>
+          </Link>
+
+          <Link
+            href="/doctor/encounter/new"
+            onClick={() => localStorage.removeItem("activeQueueEntry")}
+            className={navLinkClass("/consultation")}
+          >
             <div className="flex items-center gap-3">
               <span className="material-symbols-outlined text-[20px]">mic</span>
               <span className="text-[14px]">Voice Scribe</span>
@@ -74,20 +108,6 @@ export default function DoctorSidebar() {
             </span>
           </Link>
         </nav>
-      </div>
-
-      <div className="pt-space-md space-y-space-sm">
-        <div className="p-3 rounded-lg bg-surface-container-low flex flex-col gap-1">
-          <div className="flex items-center gap-2">
-            <span className="w-2 h-2 rounded-full bg-clinical-success"></span>
-            <span className="text-[11px] font-semibold text-text-ink uppercase">Voice Station Node</span>
-          </div>
-          <p className="text-[12px] text-on-surface-variant">Room 101 • Sennheiser Clinical Array Online</p>
-        </div>
-        <div className="p-2.5 rounded-lg bg-surface-container-high flex items-center gap-2 text-on-surface-variant">
-          <span className="material-symbols-outlined text-[16px] text-tertiary-container">lock</span>
-          <p className="text-[11px] text-on-surface">HIPAA Compliant • E2E Encrypted</p>
-        </div>
       </div>
     </aside>
   );

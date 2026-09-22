@@ -1,35 +1,24 @@
-import { Request, Response, NextFunction } from 'express';
+import { Request, Response } from 'express';
 import * as fs from 'fs';
 import * as mm from 'music-metadata';
-import { transcribeAudio } from '../services/sarvam.service';
+import { transcribeAudioModal } from '../services/modal.service';
 import { logUsage } from '../services/db.service';
 import { uploadAudioFile } from '../services/cloudinary.service';
+import { sendServerError } from '../utils/http-error';
 
-export const handleTranscription = async (req: Request, res: Response, next: NextFunction) => {
+export const handleTranscription = async (req: Request, res: Response) => {
   const file = req.file;
-  const language = req.body.language;
+  const language = req.body.language || 'en';
   const mode = req.body.mode || 'transcribe';
 
   if (!file) {
     return res.status(400).json({ message: 'Audio file is required' });
   }
 
-  if (!language) {
-    fs.unlinkSync(file.path);
-    return res.status(400).json({ message: 'Language is required' });
-  }
-
   console.log(`[Transcription] Request received for language: ${language}, mode: ${mode}`);
   
-  // Set headers for Server-Sent Events (SSE)
-  res.setHeader('Content-Type', 'text/event-stream');
-  res.setHeader('Cache-Control', 'no-cache');
-  res.setHeader('Connection', 'keep-alive');
-  // Flush headers to establish the stream immediately
-  res.flushHeaders();
-
   try {
-    console.log(`[Transcription] Calling Sarvam STT service with file: ${file.path}`);
+    console.log(`[Transcription] Calling Modal STT service with file: ${file.path}`);
     
     // Accurately measure audio duration for billing
     let durationSeconds = 0;
@@ -38,48 +27,48 @@ export const handleTranscription = async (req: Request, res: Response, next: Nex
       durationSeconds = metadata.format.duration || (file.size / 16000); // fallback if metadata fails
     } catch (metadataErr) {
       console.warn(`[Transcription] Could not read audio metadata, falling back to file size:`, metadataErr);
-      durationSeconds = file.size / 16000;
+      durationSeconds = (file.size / 16000);
     }
 
-    const onProgress = (partialText: string) => {
-      res.write(`data: ${JSON.stringify({ type: 'progress', text: partialText })}\n\n`);
-    };
-
-    const result = await transcribeAudio(file.path, language, mode, onProgress);
+    const result = await transcribeAudioModal(file.path);
     console.log(`[Transcription] Success for language: ${language}, mode: ${mode}`);
     
-        let audioUrl = null;
-    try {
-        console.log('[Cloudinary] Uploading audio file...');
-        audioUrl = await uploadAudioFile(file.path);
-        console.log('[Cloudinary] Uploaded successfully:', audioUrl);
-    } catch(err) {
-        console.error('[Cloudinary] Failed to upload audio:', err);
-    }
+    // Send response immediately so client isn't waiting for Cloudinary upload
+    res.json({ text: result.text, detectedLanguage: result.detectedLanguage, audioUrl: null });
 
-    const usage = await logUsage(durationSeconds, `[${mode.toUpperCase()}] ` + result.text, audioUrl);
-    console.log(`[Usage] Logged usage: ID ${usage.id}, Duration: ${durationSeconds.toFixed(2)}s, Cost: ₹${usage.costInr.toFixed(4)}`);
-    console.log(`Detected language: ${result.detectedLanguage}`);
-    res.write(`data: ${JSON.stringify({
-      type: 'done',
-      text: result.text,
-      language: language,
-      detectedLanguage: result.detectedLanguage,
-      costInr: usage.costInr
-    })}\n\n`);
-    
-    res.end();
-  } catch (error: any) {
-    console.error(`[Transcription] Error:`, error.message || error);
-    res.write(`data: ${JSON.stringify({ type: 'error', message: error.message || 'Failed to transcribe' })}\n\n`);
-    res.end();
-  } finally {
-    try {
-      if (fs.existsSync(file.path)) {
-        fs.unlinkSync(file.path);
+    // Background task: Upload to Cloudinary, log usage, and clean up file
+    (async () => {
+      let audioUrl = null;
+      try {
+        audioUrl = await uploadAudioFile(file.path);
+      } catch(err) {
+        console.error('[Cloudinary] Failed to upload audio:', err);
       }
+
+      try {
+        await logUsage(durationSeconds, result.text, audioUrl);
+        // Costing log removed per user request
+      } catch (usageError) {
+        console.error('[USAGE_LOG_FAILED] Usage logging failed:', usageError);
+      } finally {
+        try {
+          fs.unlinkSync(file.path);
+        } catch (cleanupErr) {
+          console.error('[Transcription] Error cleaning up file:', cleanupErr);
+        }
+      }
+    })();
+
+  } catch (error) {
+    console.error('[Transcription] Error:', error);
+    res.status(502).json({
+      code: 'TRANSCRIPTION_FAILED',
+      error: 'Unable to transcribe the audio recording.',
+    });
+    try {
+      fs.unlinkSync(file.path);
     } catch (cleanupErr) {
-      console.error('Error cleaning up file:', cleanupErr);
+      console.error('[Transcription] Error cleaning up file:', cleanupErr);
     }
   }
 };
@@ -92,8 +81,7 @@ export const handleAudioUpload = async (req: Request, res: Response) => {
         console.log('[Cloudinary] Uploading raw audio Blob...');
         const audioUrl = await uploadAudioFile(file.path);
         res.json({ audioUrl });
-    } catch (err) {
-        console.error(err);
-        res.status(500).json({ error: 'Failed to upload audio' });
+    } catch (error) {
+        sendServerError(res, 'AUDIO_UPLOAD_FAILED', 'Unable to upload the audio recording.', error);
     }
 };

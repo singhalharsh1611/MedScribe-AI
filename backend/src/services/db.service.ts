@@ -4,14 +4,14 @@ import 'dotenv/config';
 // Create new database connections
 const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
-  ssl: { rejectUnauthorized: false }
+  ssl: process.env.DATABASE_URL?.includes('localhost') ? false : { rejectUnauthorized: false }
 });
 
 pool.query('SELECT NOW()', (err) => {
   if (err) {
-    console.error('Failed to connect to Neon Postgres:', err);
+    console.error('Failed to connect to Postgres:', err);
   } else {
-    console.log('✅ Successfully connected to Neon Postgres Database!');
+    console.log('✅ Successfully connected to Postgres Database!');
   }
 });
 
@@ -57,25 +57,46 @@ export const getUsageStats = async () => {
   };
 };
 
-export const savePrescription = async (patientName: string, diagnosis: string, htmlContent: string, transcriptionText: string = '', audioUrl: string | null = null) => {
+export const savePrescription = async (
+  patientName: string,
+  diagnosis: string,
+  htmlContent: string,
+  transcriptionText: string = '',
+  audioUrl: string | null = null,
+  clinicId: number,
+  userId: number
+) => {
   const query = `
-    INSERT INTO prescriptions (patient_name, diagnosis, html_content, transcription_text, timestamp, audio_url) VALUES ($1, $2, $3, $4, CURRENT_TIMESTAMP, $5) RETURNING id
+    INSERT INTO prescriptions (patient_name, diagnosis, html_content, transcription_text, timestamp, audio_url, clinic_id, user_id)
+    VALUES ($1, $2, $3, $4, CURRENT_TIMESTAMP, $5, $6, $7) RETURNING id
   `;
   
-  const result = await pool.query(query, [patientName || 'Unknown Patient', diagnosis || 'Unknown Diagnosis', htmlContent, transcriptionText, audioUrl]);
+  const result = await pool.query(query, [patientName || 'Unknown Patient', diagnosis || 'Unknown Diagnosis', htmlContent, transcriptionText, audioUrl, clinicId, userId]);
   return result.rows[0].id;
 };
 
-export const getPrescriptions = async () => {
+export const getPrescriptions = async (clinicId: number) => {
   // Return without html_content for the list view to save bandwidth
-  const query = `SELECT id, timestamp, patient_name, diagnosis, transcription_text, audio_url FROM prescriptions ORDER BY timestamp DESC`;
-  const result = await pool.query(query);
+  const query = `SELECT id, timestamp, patient_name, diagnosis, transcription_text, audio_url
+                 FROM prescriptions WHERE clinic_id=$1 ORDER BY timestamp DESC`;
+  const result = await pool.query(query, [clinicId]);
   return result.rows;
 };
 
-export const getPrescriptionById = async (id: number) => {
-  const query = `SELECT id, patient_name, diagnosis, html_content, transcription_text, timestamp FROM prescriptions WHERE id = $1`;
-  const result = await pool.query(query, [id]);
+export const getPrescriptionById = async (id: number, clinicId: number) => {
+  const query = `
+    SELECT pr.id, pr.encounter_id, pr.patient_id, pr.serial, pr.patient_name,
+           pr.diagnosis, pr.html_content, pr.transcription_text, pr.audio_url,
+           pr.prescription_data, pr.timestamp,
+           p.first_name, p.last_name,
+           EXTRACT(YEAR FROM age(CURRENT_DATE, p.dob))::integer AS age,
+           p.dob, p.gender, p.phone, p.email, p.uhid, NULL::text AS allergies,
+           u.name AS clinician_name, u.specialty AS clinician_specialty, u.npi AS clinician_npi
+      FROM prescriptions pr
+      LEFT JOIN patients p ON p.id = pr.patient_id AND p.clinic_id = pr.clinic_id
+      LEFT JOIN users u ON u.id = pr.user_id
+     WHERE pr.id=$1 AND pr.clinic_id=$2`;
+  const result = await pool.query(query, [id, clinicId]);
   return result.rows[0];
 };
 

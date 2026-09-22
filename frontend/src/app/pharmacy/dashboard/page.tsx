@@ -1,15 +1,41 @@
 "use client";
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useApp } from "@/context/AppContext";
+import { api, getUser } from "@/lib/api";
 
 export default function PharmacyDashboardPage() {
   const router = useRouter();
   const { showToast } = useApp();
   const [modalOpen, setModalOpen] = useState(false);
-  const [selectedRx, setSelectedRx] = useState({ id: "RX-2024-99812", name: "Maya Lin Harrison", items: "3 Items" });
+  const [selectedRx, setSelectedRx] = useState({ id: "", name: "", items: "" });
   const [tasksDone, setTasksDone] = useState<Record<string, string>>({});
+  const [encounters, setEncounters] = useState<any[]>([]);
+  const [queue, setQueue] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const load = async () => {
+      const user = getUser();
+      if (!user?.clinic_id) { setLoading(false); return; }
+      try {
+        const [encRes, qRes] = await Promise.all([
+          api.encounters.list({ clinicId: user.clinic_id }).catch(() => ({ encounters: [] })),
+          api.queue.get(user.clinic_id).catch(() => ({ queue: [] }))
+        ]);
+        const encData = encRes.encounters || [];
+        const withRx = encData.filter((e: any) => e.prescription || e.prescriptions);
+        setEncounters(withRx);
+        setQueue(qRes.queue || []);
+      } catch (err) {
+        console.error(err);
+      } finally {
+        setLoading(false);
+      }
+    };
+    load();
+  }, []);
 
   const handleTask = (taskId: string, label: string) => {
     setTasksDone((prev) => ({ ...prev, [taskId]: label }));
@@ -473,79 +499,45 @@ export default function PharmacyDashboardPage() {
 
               {/* Queue List */}
               <div className="space-y-3">
-                {/* Patient 1 */}
-                <div className="p-3 rounded-lg bg-surface-container-lowest border border-surface-container hover:border-surface-container-highest shadow-sm transition-all space-y-1">
-                  <div className="flex items-center justify-between">
-                    <span className="text-[10px] bg-container-tint text-primary px-2 py-0.5 rounded font-bold border border-primary/20">
-                      WINDOW 2
-                    </span>
-                    <span className="text-[11px] text-clinical-warning flex items-center gap-1 font-bold">
-                      <span className="material-symbols-outlined text-[14px]">hourglass_top</span>Waiting 6m
-                    </span>
-                  </div>
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <p className="text-[14px] font-bold text-text-ink">Maya Lin Harrison</p>
-                      <p className="text-[11px] font-medium text-text-muted">32 yrs • Female • Rx #99812</p>
-                    </div>
-                    <div className="text-right">
-                      <span className="text-[11px] bg-surface-container-high border border-surface-container-highest px-2 py-0.5 rounded text-text-ink font-bold shadow-sm">
-                        3 Items
+                {queue.length === 0 ? (
+                  <div className="text-center py-4 text-text-muted text-[13px]">No patients in queue</div>
+                ) : queue.map((item: any, i: number) => (
+                  <div key={item.id} className="p-3 rounded-lg bg-surface-container-lowest border border-surface-container hover:border-surface-container-highest shadow-sm transition-all space-y-1">
+                    <div className="flex items-center justify-between">
+                      <span className="text-[10px] bg-container-tint text-primary px-2 py-0.5 rounded font-bold border border-primary/20">
+                        WINDOW {(i % 5) + 1}
+                      </span>
+                      <span className="text-[11px] text-clinical-warning flex items-center gap-1 font-bold">
+                        <span className="material-symbols-outlined text-[14px]">hourglass_top</span>Waiting
                       </span>
                     </div>
-                  </div>
-                  <div className="pt-2 flex items-center gap-2">
-                    <button
-                      onClick={() => showToast("Calling Maya Lin Harrison to Window 2 via Audio Chime...")}
-                      className="flex-1 bg-surface-container-highest hover:bg-surface-container text-text-ink text-[12px] font-bold py-1.5 rounded flex items-center justify-center gap-1 transition-colors border border-surface-container-highest shadow-sm cursor-pointer"
-                    >
-                      <span className="material-symbols-outlined text-[16px]">volume_up</span>Call Window
-                    </button>
-                    <button
-                      onClick={() => showToast("Biometric & ID Checked for Maya Lin Harrison")}
-                      className="flex-1 bg-primary hover:bg-accent-dark text-on-primary text-[12px] font-bold py-1.5 rounded flex items-center justify-center gap-1 transition-colors shadow-sm cursor-pointer"
-                    >
-                      <span className="material-symbols-outlined text-[16px]">badge</span>Verify ID
-                    </button>
-                  </div>
-                </div>
-
-                {/* Patient 2 */}
-                <div className="p-3 rounded-lg bg-surface-container-lowest border border-surface-container hover:border-surface-container-highest shadow-sm transition-all space-y-1">
-                  <div className="flex items-center justify-between">
-                    <span className="text-[10px] bg-container-tint text-primary px-2 py-0.5 rounded font-bold border border-primary/20">
-                      WINDOW 1
-                    </span>
-                    <span className="text-[11px] text-clinical-error flex items-center gap-1 font-bold">
-                      <span className="material-symbols-outlined text-[14px]">alarm</span>Waiting 14m
-                    </span>
-                  </div>
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <p className="text-[14px] font-bold text-text-ink">Arthur Pendelton</p>
-                      <p className="text-[11px] font-medium text-text-muted">58 yrs • Male • Post-Op Consult</p>
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <p className="text-[14px] font-bold text-text-ink">{item.patient_name || 'Unknown Patient'}</p>
+                        <p className="text-[11px] font-medium text-text-muted">Reason: {item.reason || 'N/A'}</p>
+                      </div>
+                      <div className="text-right">
+                        <span className="text-[11px] bg-surface-container-high border border-surface-container-highest px-2 py-0.5 rounded text-text-ink font-bold shadow-sm">
+                          {item.status || 'Waiting'}
+                        </span>
+                      </div>
                     </div>
-                    <div className="text-right">
-                      <span className="text-[11px] bg-surface-container-high border border-surface-container-highest px-2 py-0.5 rounded text-text-ink font-bold shadow-sm">
-                        Consult
-                      </span>
+                    <div className="pt-2 flex items-center gap-2">
+                      <button
+                        onClick={() => showToast(`Calling ${item.patient_name} to Window`)}
+                        className="flex-1 bg-surface-container-highest hover:bg-surface-container text-text-ink text-[12px] font-bold py-1.5 rounded flex items-center justify-center gap-1 transition-colors border border-surface-container-highest shadow-sm cursor-pointer"
+                      >
+                        <span className="material-symbols-outlined text-[16px]">volume_up</span>Call Window
+                      </button>
+                      <button
+                        onClick={() => showToast(`Biometric & ID Verified: ${item.patient_name}`)}
+                        className="flex-1 bg-primary hover:bg-accent-dark text-on-primary text-[12px] font-bold py-1.5 rounded flex items-center justify-center gap-1 transition-colors shadow-sm cursor-pointer"
+                      >
+                        <span className="material-symbols-outlined text-[16px]">badge</span>Verify ID
+                      </button>
                     </div>
                   </div>
-                  <div className="pt-2 flex items-center gap-2">
-                    <button
-                      onClick={() => showToast("Calling Arthur Pendelton to Window 1...")}
-                      className="flex-1 bg-surface-container-highest hover:bg-surface-container text-text-ink text-[12px] font-bold py-1.5 rounded flex items-center justify-center gap-1 transition-colors border border-surface-container-highest shadow-sm cursor-pointer"
-                    >
-                      <span className="material-symbols-outlined text-[16px]">volume_up</span>Call Window
-                    </button>
-                    <button
-                      onClick={() => showToast("Biometric & ID Verified: Arthur Pendelton")}
-                      className="flex-1 bg-primary hover:bg-accent-dark text-on-primary text-[12px] font-bold py-1.5 rounded flex items-center justify-center gap-1 transition-colors shadow-sm cursor-pointer"
-                    >
-                      <span className="material-symbols-outlined text-[16px]">badge</span>Verify ID
-                    </button>
-                  </div>
-                </div>
+                ))}
               </div>
             </div>
 

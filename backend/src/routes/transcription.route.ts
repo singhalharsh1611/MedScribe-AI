@@ -19,10 +19,13 @@ const upload = multer({
   limits: { fileSize: 25 * 1024 * 1024 },
   fileFilter: (req, file, cb) => {
     const allowedMimeTypes = ['audio/mpeg', 'audio/wav', 'audio/mp4', 'audio/x-m4a', 'audio/webm', 'audio/ogg'];
-    if (allowedMimeTypes.includes(file.mimetype) || file.mimetype.startsWith('audio/')) {
+    const ext = path.extname(file.originalname).toLowerCase();
+    const allowedExtensions = ['.mp3', '.wav', '.ogg', '.m4a', '.webm', '.mp4'];
+    
+    if (allowedMimeTypes.includes(file.mimetype) || file.mimetype.startsWith('audio/') || allowedExtensions.includes(ext)) {
       cb(null, true);
     } else {
-      cb(new Error('Invalid file type. Only audio files are allowed.'));
+      cb(new Error(`Invalid file type: ${file.mimetype}. Only audio files are allowed.`));
     }
   },
 });

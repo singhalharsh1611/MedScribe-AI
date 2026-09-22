@@ -1,0 +1,117 @@
+
+"use client";
+import { useState, useEffect } from "react";
+import { useRouter } from "next/navigation";
+import Image from "next/image";
+
+export default function ReviewDraftPage() {
+  const router = useRouter();
+  const [isPlaying, setIsPlaying] = useState(false);
+  const [bannerMessage, setBannerMessage] = useState("");
+  const [loadingPipeline, setLoadingPipeline] = useState(true);
+  
+  const [medications, setMedications] = useState<any[]>([]);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [searchResults, setSearchResults] = useState<any[]>([]);
+
+  useEffect(() => {
+    const runPipeline = async () => {
+      try {
+        const transcript = localStorage.getItem("mockTranscription");
+        if (!transcript) {
+          setLoadingPipeline(false);
+          return;
+        }
+
+        // 1. Extract
+        const extRes = await fetch("http://localhost:3001/api/prescription/extract", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ transcript }),
+        });
+        const extData = await extRes.json();
+        
+        // 2. Map
+        const mapRes = await fetch("http://localhost:3001/api/prescription/map", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ extractedDrugs: extData.extracted || [] }),
+        });
+        const mapData = await mapRes.json();
+        
+        // Format for UI
+        const mappedResults = (mapData.mapped || []).map((drug: any, index: number) => ({
+          id: Date.now() + index,
+          name: drug.brand_name || "Unknown Drug",
+          sub: "• " + (drug.salt || "Oral Formulation"),
+          category: "MedGemma Extracted",
+          verified: "Mapped DB Generic",
+          dose: "As Prescribed",
+          frequency: "1 Tablet OD",
+          timing: "Night (Bedtime)",
+          timingIcon: "bedtime",
+          timingColor: "text-primary",
+          food: "With or without food",
+          duration: "30 Days (Qty: 30)",
+          instructions: "Generated from transcript analysis.",
+          timestamp: "00:00",
+          quote: transcript.substring(0, 50) + "..."
+        }));
+
+        setMedications(mappedResults);
+      } catch (err) {
+        console.error("Pipeline error:", err);
+      } finally {
+        setLoadingPipeline(false);
+      }
+    };
+    runPipeline();
+  }, []);
+
+  const searchDrugDb = async (q: string) => {
+    setSearchQuery(q);
+    if (!q || q.length < 2) {
+      setSearchResults([]);
+      return;
+    }
+    try {
+      const res = await fetch(`http://localhost:3001/api/prescription/search?q=${encodeURIComponent(q)}`);
+      const data = await res.json();
+      setSearchResults(data.results || []);
+    } catch (err) {
+      console.error("Search error:", err);
+    }
+  };
+
+  const handleAddSearchResult = (drug: any) => {
+    const newId = Date.now();
+    setMedications([
+      ...medications,
+      {
+        id: newId,
+        name: drug.brand_name,
+        sub: "• " + (drug.salt || "Formulation"),
+        category: "Manual Add",
+        verified: "DB Verified",
+        dose: "1 Tablet",
+        frequency: "Once daily (OD)",
+        timing: "Morning",
+        timingIcon: "light_mode",
+        timingColor: "text-clinical-warning",
+        food: "With or without food",
+        duration: "30 Days",
+        instructions: "Take 1 tablet.",
+        timestamp: "Manual",
+        quote: "Added via search"
+      }
+    ]);
+    setSearchQuery("");
+    setSearchResults([]);
+  };
+
+  const handleDelete = (id: number) => {
+    setMedications(medications.filter(med => med.id !== id));
+    setBannerMessage("Medication staged for removal.");
+    setTimeout(() => setBannerMessage(""), 3000);
+  };
+

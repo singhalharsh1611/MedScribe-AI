@@ -1,6 +1,7 @@
 import { Request, Response, NextFunction } from 'express';
 import { translateText } from '../services/translate.service';
 import { logTranslation } from '../services/db.service';
+import { sendServerError } from '../utils/http-error';
 
 export const handleTranslation = async (req: Request, res: Response, next: NextFunction) => {
   const { text, sourceLanguage, targetLanguage } = req.body;
@@ -17,15 +18,18 @@ export const handleTranslation = async (req: Request, res: Response, next: NextF
     const endTime = Date.now();
     const translationTimeMs = endTime - startTime;
 
-    await logTranslation(sourceLanguage, targetLanguage, text.length, translationTimeMs);
+    try {
+      await logTranslation(sourceLanguage, targetLanguage, text.length, translationTimeMs);
+    } catch (usageError) {
+      console.error('[TRANSLATION_USAGE_LOG_FAILED] Translation succeeded but usage logging failed:', usageError);
+    }
     console.log(`[Translation] Success in ${translationTimeMs}ms`);
 
     res.json({
       translatedText: result.translatedText,
       translationTimeMs
     });
-  } catch (error: any) {
-    console.error(`[Translation] Error:`, error.message || error);
-    res.status(500).json({ message: error.message || 'Translation failed' });
+  } catch (error) {
+    sendServerError(res, 'TRANSLATION_FAILED', 'Unable to translate the text.', error);
   }
 };
