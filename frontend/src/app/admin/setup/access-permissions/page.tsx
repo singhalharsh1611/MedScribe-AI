@@ -348,7 +348,7 @@ export default function AdminSetupAccessPermissionsPage() {
               </div>
             </div>
 
-            {/* 6. Voice AI */}
+            {/* 6. MedScribe AI */}
             <div className="p-6 grid grid-cols-12 gap-6 items-center hover:bg-surface-container-lowest transition-colors bg-surface-container-lowest/50">
               <div className="col-span-12 md:col-span-5 flex items-start gap-4">
                 <div className="w-10 h-10 rounded-lg bg-primary border border-primary text-white flex items-center justify-center flex-shrink-0 mt-0.5 shadow-md">
@@ -356,7 +356,7 @@ export default function AdminSetupAccessPermissionsPage() {
                 </div>
                 <div className="flex flex-col">
                   <div className="flex items-center gap-2 mb-1">
-                    <span className="text-[15px] font-bold text-text-ink">6. Voice AI</span>
+                    <span className="text-[15px] font-bold text-text-ink">6. MedScribe AI</span>
                     {permissions.voiceAi && <span className="material-symbols-outlined text-clinical-success text-[20px]">check_circle</span>}
                     <span className="px-2 py-0.5 rounded bg-surface-container border border-primary/20 text-primary text-[11px] font-bold shadow-sm">Core Engine</span>
                   </div>

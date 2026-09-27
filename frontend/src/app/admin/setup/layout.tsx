@@ -14,7 +14,7 @@ export default function AdminSetupLayout({ children }: { children: React.ReactNo
           <div className="flex items-center gap-4">
             <Link href="/" className="flex-shrink-0">
               <img
-                alt="SleekCare Emblem"
+                alt="MedScribe AI Emblem"
                 className="h-8 w-auto object-contain flex-shrink-0"
                 src="https://lh3.googleusercontent.com/aida/AEtjO1XkMLN23noarFOAg-7wBsrUX65ovyYdbbJpjRMqdWAYR7MwmwWWQ-7Tp8KW3HPEjbBD_jiVgmj5UbtO1tPXRpyw6OUCEDiEJQF5piaF3i0IgVgdrQxDQ4-z0aSSX9my-k0g-pCMIxOL2EsKI2_KfKDqB84y9LC8uMToker-YKVStySsY3TOLa8fNSBKcAflBI92M_xIsR0tnSg5BKuMyuCdLVd9lhMweOlxEFMlZFnSRAhev6mPbVoVG2w"
               />
@@ -22,7 +22,7 @@ export default function AdminSetupLayout({ children }: { children: React.ReactNo
             <div className="h-6 w-px bg-container-tint flex-shrink-0"></div>
             <div className="flex flex-col min-w-0">
               <span className="font-bold text-[15px] leading-5 text-text-ink truncate tracking-tight">
-                {isDashboard ? "SleekCare Clinical Voice OS" : "Clinical Voice OS | Clinic Admin Setup & Management"}
+                {isDashboard ? "MedScribe AI" : "MedScribe AI | Clinic Admin Setup & Management"}
               </span>
               <div className="flex items-center gap-1.5 text-text-muted text-[11px] font-bold">
                 <span className="hover:text-primary cursor-pointer transition-colors">Clinic Administration</span>
@@ -212,7 +212,7 @@ export default function AdminSetupLayout({ children }: { children: React.ReactNo
       <footer className="ml-64 bg-card-surface shadow-sm py-6 px-10 border-t border-container-tint/50 mt-auto">
         <div className="flex flex-col md:flex-row items-center justify-between gap-4">
           <div className="flex items-center gap-3">
-            <span className="text-[12px] font-medium text-text-muted">© 2024 SleekCare Health Systems Inc. Clinical Voice Architecture.</span>
+            <span className="text-[12px] font-medium text-text-muted">© 2024 MedScribe AI.</span>
           </div>
           <div className="flex flex-wrap items-center gap-3">
             <div className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded bg-surface-container-lowest border border-surface-container text-text-ink text-[11px] font-bold shadow-sm">

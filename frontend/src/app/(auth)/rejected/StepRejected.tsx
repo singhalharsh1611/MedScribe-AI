@@ -44,7 +44,7 @@ export default function RejectedPage({ onNext }: { onNext: (step: string, data?:
           <h1 className="text-[36px] font-bold text-text-ink tracking-tight">Request rejected</h1>
           <p className="text-[16px] text-on-surface-variant max-w-md mx-auto leading-relaxed">
             {isPlatformRejected ? (
-              <>Your registration request for the <strong>SleekCare Platform</strong> was not approved by the Platform Administration. Please contact support if you believe this is an error.</>
+              <>Your registration request for the <strong>MedScribe AI</strong> was not approved by the Platform Administration. Please contact support if you believe this is an error.</>
             ) : (
               <>Your join request for <strong>{clinicName}</strong> was not approved. This may be due to incomplete credentials or insufficient departmental authorization.</>
             )}

@@ -85,7 +85,7 @@ export default function RequestPendingPage({ onNext }: { onNext: (step: string, 
           <p className="text-[14px] text-on-surface-variant mt-2 leading-relaxed">
             {user?.verification_status === "approved" 
               ? "Your request to join the clinic has been submitted to the Clinic Administrator for review."
-              : "Your account has been submitted for review by the SleekCare Platform Administration."}
+              : "Your account has been submitted for review by the MedScribe AI Administration."}
             <br />You will be notified once verified.
           </p>
         </div>

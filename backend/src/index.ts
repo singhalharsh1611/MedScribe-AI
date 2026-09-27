@@ -1,4 +1,4 @@
-import express from 'express';
+﻿import express from 'express';
 import cors from 'cors';
 import dotenv from 'dotenv';
 import morgan from 'morgan';
@@ -19,7 +19,6 @@ import staffRoute from './routes/staff.route';
 import encountersRoute from './routes/encounters.route';
 import superAdminRoute from './routes/superadmin.route';
 import http from 'http';
-import { setupWebSocketServer } from './services/ws.service';
 import { requireAuth, requireClinicBoundary, requirePinResetComplete, requireRole } from './middleware/auth.middleware';
 
 dotenv.config();
@@ -83,12 +82,12 @@ app.use((err: any, req: express.Request, res: express.Response, next: express.Ne
 
 const server = http.createServer(app);
 
-// Setup WebSocket Server for Live Transcription
-setupWebSocketServer(server);
 
 server.listen(port, () => {
-  console.log(`Express API and WebSocket is running on http://localhost:${port}`);
+  console.log(`Express API is running on http://localhost:${port}`);
   void initPrescriptionService().catch((error) => {
     console.error('[PRESCRIPTION_CACHE_INIT_FAILED]', error);
   });
 });
+
+

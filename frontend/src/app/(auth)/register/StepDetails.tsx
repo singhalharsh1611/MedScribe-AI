@@ -115,7 +115,7 @@ export default function RegisterPage({ onNext }: { onNext: (step: string, data?:
           <div className="flex flex-col md:flex-row md:items-start justify-between gap-space-md">
             <div className="flex flex-col gap-space-2xs">
               <h1 className="text-[28px] font-bold text-text-ink tracking-tight mt-space-2xs">Doctor Registration</h1>
-              <p className="text-[14px] text-on-surface-variant">Enter your professional clinical credentials to create your SleekCare account.</p>
+              <p className="text-[14px] text-on-surface-variant">Enter your professional clinical credentials to create your MedScribe AI account.</p>
             </div>
           </div>
 

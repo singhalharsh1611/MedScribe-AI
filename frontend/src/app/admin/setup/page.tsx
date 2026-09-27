@@ -255,7 +255,7 @@ export default function AdminSetupOverviewPage() {
             </div>
             <div className="flex flex-col min-w-0">
               <span className="text-[14px] text-text-ink font-bold mb-0.5">Need assistance configuring your clinic?</span>
-              <span className="text-[12px] text-text-muted font-bold truncate">SleekCare Health concierge implementation is on standby.</span>
+              <span className="text-[12px] text-text-muted font-bold truncate">MedScribe AI concierge implementation is on standby.</span>
             </div>
           </div>
 

@@ -34,7 +34,7 @@ export default function SuperAdminLoginPage() {
               <span className="material-symbols-outlined text-white text-[24px]">admin_panel_settings</span>
             </div>
             <div>
-              <h1 className="text-[20px] font-bold text-text-ink">SleekCare</h1>
+              <h1 className="text-[20px] font-bold text-text-ink">MedScribe AI</h1>
               <p className="text-[12px] text-text-muted font-semibold uppercase tracking-wider">Platform Administration</p>
             </div>
           </div>
@@ -79,7 +79,7 @@ export default function SuperAdminLoginPage() {
           </form>
 
           <p className="text-center text-[12px] text-text-muted mt-6">
-            This portal is restricted to SleekCare platform administrators only.
+            This portal is restricted to MedScribe AI Administrators only.
           </p>
         </div>
       </div>

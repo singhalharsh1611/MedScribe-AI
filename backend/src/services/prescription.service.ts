@@ -175,12 +175,12 @@ export function isKnownMedicationName(name: string) {
  * STEP 1: Extract suspected medicine names from transcript using MedGemma
  */
 export const extractDrugs = async (transcript: string): Promise<ExtractedMedication[]> => {
-    const apiKey = process.env.DR7_API_KEY;
-    const model = process.env.DR7_LLM_MODEL || 'medgemma-4b-it';
-    const apiUrl = process.env.DR7_API_URL || 'https://dr7.ai/api/v1/medical/chat/completions';
+    const apiKey = process.env.MEDGEMMA_API_KEY;
+    const model = process.env.MEDGEMMA_LLM_MODEL || 'medgemma-4b-it';
+    const apiUrl = process.env.MEDGEMMA_API_URL || 'https://dr7.api/api/v1/medical/chat/completions';
     
     if (!apiKey) {
-        throw new Error('DR7_API_KEY is not set in environment variables');
+        throw new Error('MEDGEMMA_API_KEY is not set in environment variables');
     }
 
     const systemPrompt = `You extract medication mentions from noisy, run-on doctor dictation. Extraction must remain literal and auditable. Do not prescribe, correct a brand to a database spelling, infer an ingredient, or invent missing dose information.
@@ -282,8 +282,32 @@ Return only valid JSON matching this schema for fields that are actually present
             strength_components: parsedStrengths,
             alternatives: Array.isArray(item.alternatives) ? item.alternatives.filter((value: unknown) => typeof value === 'string') : [],
             extraction_confidence: Number.isFinite(extractionConfidence) ? Math.max(0, Math.min(1, extractionConfidence)) : 0,
-            dose: item.dose || 'N/A',
-            route: item.route || 'N/A',
+            dose: (() => {
+                if (item.dose && item.dose !== 'N/A') return item.dose;
+                // Infer a sensible default dose from the dosage form
+                const form = dosageForm?.toLowerCase() || '';
+                if (form === 'tablet' || form === 'capsule')    return '1 ' + form;
+                if (form === 'syrup' || form === 'suspension')  return '5 ml';
+                if (form === 'drops')                           return '2 drops';
+                if (form === 'spray')                           return '1–2 sprays';
+                if (form === 'patch')                           return '1 patch';
+                if (form === 'cream' || form === 'ointment' || form === 'gel') return 'Apply thin layer';
+                return 'N/A';
+            })(),
+            route: (() => {
+                if (item.route && item.route !== 'N/A') return item.route;
+                // Infer route from dosage form
+                const form = dosageForm?.toLowerCase() || '';
+                if (form === 'tablet' || form === 'capsule' || form === 'syrup' ||
+                    form === 'suspension' || form === 'solution' || form === 'powder')   return 'Oral';
+                if (form === 'inhaler' || form === 'respule' || form === 'rotacap')      return 'Inhalation';
+                if (form === 'injection')                                                return 'Injection';
+                if (form === 'cream' || form === 'ointment' || form === 'gel')          return 'Topical';
+                if (form === 'drops')                                                   return 'Topical / Instillation';
+                if (form === 'spray')                                                   return 'Nasal / Topical';
+                if (form === 'patch')                                                   return 'Transdermal';
+                return 'N/A';
+            })(),
             frequency: frequency !== 'N/A' ? frequency : compact.frequency,
             duration: item.duration || 'N/A',
             instructions: item.instructions || 'N/A',
@@ -367,39 +391,6 @@ export const mapDrugsToDatabase = async (extractedDrugs: Array<string | Extracte
     });
 };
 
-import fs from 'fs';
-
-const escapeHtml = (value: unknown) => String(value ?? '')
-    .replaceAll('&', '&amp;')
-    .replaceAll('<', '&lt;')
-    .replaceAll('>', '&gt;')
-    .replaceAll('"', '&quot;')
-    .replaceAll("'", '&#039;');
-
-export const renderPrescriptionHtml = (prescriptionData: any) => {
-    const templatePath = path.join(__dirname, '..', '..', 'assets', 'prescription_template.html');
-    let html = fs.readFileSync(templatePath, 'utf-8');
-    const tags = [
-        'patient_name', 'patient_age', 'patient_gender', 'chief_complaint', 'hpi',
-        'allergies', 'past_history', 'vital_bp', 'vital_hr', 'vital_rr', 'vital_temp',
-        'vital_spo2', 'vital_height', 'vital_weight', 'vital_bmi', 'physical_examination',
-        'tests_ordered', 'key_results', 'differential_diagnosis', 'diet_lifestyle',
-        'activity', 'follow_up', 'emergency_precautions'
-    ];
-    html = html.replaceAll('{{visit_date}}', escapeHtml(new Date().toLocaleDateString()));
-    for (const tag of tags) html = html.replaceAll(`{{${tag}}}`, escapeHtml(prescriptionData[tag]));
-
-    const rows = (prescriptionData.medications || []).map((medication: any) => `
-<tr>
-    <td><b>${escapeHtml(medication.medicine || medication.name)}</b></td>
-    <td>${escapeHtml(medication.dose)}</td>
-    <td>${escapeHtml(medication.route)}</td>
-    <td>${escapeHtml(medication.frequency)}</td>
-    <td>${escapeHtml(medication.duration)}</td>
-    <td>${escapeHtml(medication.instructions)}</td>
-</tr>`).join('');
-    return html.replaceAll('{{medication_rows_html}}', rows);
-};
 
 export function validateMedicationSelections(prescriptionData: any, mappedDrugs: any[]) {
     const generated = Array.isArray(prescriptionData?.medications) ? prescriptionData.medications : [];
@@ -572,12 +563,12 @@ REQUIRED JSON FORMAT:
     console.log('[DEBUG] Prompt total length:', prompt.length);
 
     // 2. Call MedGemma
-    const apiKey = process.env.DR7_API_KEY;
-    const model = process.env.DR7_LLM_MODEL || 'medgemma-4b-it';
-    const apiUrl = process.env.DR7_API_URL || 'https://dr7.ai/api/v1/medical/chat/completions';
+    const apiKey = process.env.MEDGEMMA_API_KEY;
+    const model = process.env.MEDGEMMA_LLM_MODEL || 'medgemma-4b-it';
+    const apiUrl = process.env.MEDGEMMA_API_URL || 'https://dr7.ai/api/v1/medical/chat/completions';
     
     if (!apiKey) {
-        throw new Error('DR7_API_KEY is not set in environment variables');
+        throw new Error('MEDGEMMA_API_KEY is not set in environment variables');
     }
 
     let aiResponse;
@@ -620,10 +611,8 @@ REQUIRED JSON FORMAT:
         throw new Error('LLM returned invalid JSON for prescription.');
     }
 
-    const html = renderPrescriptionHtml(prescriptionData);
-
     return { 
-        html, 
+        html: null, 
         patientName: prescriptionData.patient_name || 'Unknown', 
         diagnosis: prescriptionData.final_diagnosis || prescriptionData.differential_diagnosis || 'Unknown',
         prescriptionData

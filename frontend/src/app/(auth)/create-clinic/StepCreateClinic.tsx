@@ -103,7 +103,7 @@ export default function CreateClinicPage({ onNext }: { onNext: (step: string, da
             <div className="relative z-10 flex flex-col gap-space-xs mb-space-lg">
               <span className="text-[11px] font-semibold uppercase tracking-wider text-primary">Organizational Setup</span>
               <h1 className="text-[28px] font-bold text-text-ink tracking-tight">Create Clinic / Hospital</h1>
-              <p className="text-[14px] text-on-surface-variant">Set up your practice profile to establish your organization workspace on SleekCare.</p>
+              <p className="text-[14px] text-on-surface-variant">Set up your practice profile to establish your organization workspace on MedScribe AI.</p>
             </div>
 
             {error && (

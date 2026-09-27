@@ -520,7 +520,7 @@ export default function PharmacyFulfillmentPage() {
                   <span className="material-symbols-outlined text-[16px]">mic</span>
                 </div>
                 <div className="flex flex-col">
-                  <span className="text-[12px] text-text-ink font-bold mb-0.5">Voice OS Assistant</span>
+                  <span className="text-[12px] text-text-ink font-bold mb-0.5">MedScribe AI</span>
                   <span className="text-[11px] text-text-muted font-bold">Say: “Verify Lot MK-9021”</span>
                 </div>
               </div>

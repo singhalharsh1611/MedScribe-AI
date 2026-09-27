@@ -9,7 +9,7 @@ export default function AdminRoleDetailsPage({ params }: { params: { id: string 
   const router = useRouter();
 
   const handleSave = () => {
-    addToast({ title: 'Permissions Updated', description: 'Permissions updated successfully across Voice OS cluster', type: 'success' });
+    addToast({ title: 'Permissions Updated', description: 'Permissions updated successfully across MedScribe AI cluster', type: 'success' });
   };
 
   return (
@@ -68,7 +68,7 @@ export default function AdminRoleDetailsPage({ params }: { params: { id: string 
             <span className="material-symbols-outlined text-[24px]">mic</span>
           </div>
           <div className="flex flex-col min-w-0">
-            <span className="text-[11px] font-bold text-text-muted uppercase tracking-wider">Voice OS Engine</span>
+            <span className="text-[11px] font-bold text-text-muted uppercase tracking-wider">MedScribe AI</span>
             <span className="text-[14px] font-bold text-text-ink truncate">Ambient Direct · High FID</span>
           </div>
         </div>
@@ -179,7 +179,7 @@ export default function AdminRoleDetailsPage({ params }: { params: { id: string 
           </div>
         </div>
 
-        {/* Voice AI */}
+        {/* MedScribe AI */}
         <div className="bg-card-surface border border-surface-container rounded-xl p-8 shadow-sm flex flex-col justify-between">
           <div className="flex flex-col gap-6">
             <div className="flex items-center justify-between pb-4 border-b border-surface-container">
@@ -187,7 +187,7 @@ export default function AdminRoleDetailsPage({ params }: { params: { id: string 
                 <div className="w-10 h-10 rounded-lg bg-surface-container-low border border-surface-container flex items-center justify-center text-primary shadow-sm">
                   <span className="material-symbols-outlined text-[24px]">graphic_eq</span>
                 </div>
-                <h3 className="text-[18px] font-bold text-text-ink">6. Voice AI</h3>
+                <h3 className="text-[18px] font-bold text-text-ink">6. MedScribe AI</h3>
               </div>
               <span className="bg-success-bg border border-clinical-success/20 text-clinical-success text-[11px] font-bold px-2.5 py-1 rounded-md shadow-sm uppercase tracking-wider">3 / 3 Enabled</span>
             </div>

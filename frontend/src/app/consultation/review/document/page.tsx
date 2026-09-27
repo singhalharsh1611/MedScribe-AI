@@ -121,10 +121,7 @@ export default function ReviewDocumentPage() {
                   <h1 className="clinic-name font-bold tracking-tight leading-tight">
                     {clinic?.name || "Clinic Prescription"}
                   </h1>
-                  <p className="dept-line font-semibold text-slate-600 mt-0.5">
-                    Department of Internal Medicine &amp; Pulmonology
-                  </p>
-                  <p className="addr-line text-slate-500 mt-1 leading-relaxed">
+                  <p className="addr-line text-slate-500 mt-1.5 leading-relaxed">
                     {clinic?.address || "Clinic address not available"}<br />
                     {clinic?.phone ? `Tel: ${clinic.phone}` : "Clinic contact not available"}
                   </p>
@@ -163,7 +160,7 @@ export default function ReviewDocumentPage() {
                     Age: {patient?.age || prescription?.patient_age || "Not recorded"}
                   </p>
                   <p className="detail-line text-slate-700 font-semibold mt-0.5">
-                    UHID: {patient?.uhid || "Not recorded"}
+                  {patient?.uhid || "Not recorded"}
                   </p>
                 </div>
               </div>
@@ -187,21 +184,21 @@ export default function ReviewDocumentPage() {
                   <p className="detail-line text-slate-600">{record?.clinician_specialty || user?.specialty || "Clinical Practitioner"}</p>
                 </div>
               </div>
-              <div className="mt-2 grid grid-cols-3 gap-1">
-                <div>
-                  <p className="detail-line text-slate-400 font-semibold">State Lic</p>
-                  <p className="detail-line font-bold">{user?.license_number || "—"}</p>
-                </div>
-                <div>
-                  <p className="detail-line text-slate-400 font-semibold">NPI</p>
-                  <p className="detail-line font-bold">{record?.clinician_npi || user?.npi || "—"}</p>
-                </div>
-                <div>
-                  <p className="detail-line text-slate-400 font-semibold">DEA Reg</p>
-                  <p className="detail-line font-bold">{user?.dea_number || "—"}</p>
-                </div>
+              <div className="mt-2 grid grid-cols-2 gap-2">
+                {user?.license_number && (
+                  <div>
+                    <p className="detail-line text-slate-400 font-semibold">State Lic</p>
+                    <p className="detail-line font-bold">{user.license_number}</p>
+                  </div>
+                )}
+                {(record?.clinician_npi || user?.npi) && (
+                  <div>
+                    <p className="detail-line text-slate-400 font-semibold">Reg / NPI</p>
+                    <p className="detail-line font-bold">{record?.clinician_npi || user?.npi}</p>
+                  </div>
+                )}
               </div>
-              <p className="detail-line text-slate-500 mt-1.5">Electronically issued by {clinic?.name || "the clinic"}</p>
+              <p className="detail-line text-slate-500 mt-2">Electronically issued by {clinic?.name || "the clinic"}</p>
             </div>
           </section>
 
@@ -213,11 +210,24 @@ export default function ReviewDocumentPage() {
               <div>
                 <h2 className="med-section-title font-bold">Medication Orders</h2>
                 <p className="detail-line text-slate-500">
-                  {medications.length} order{medications.length !== 1 ? "s" : ""} &nbsp;&middot;&nbsp;
-                  Standard Outpatient Protocol &nbsp;&middot;&nbsp; Substitution Permitted (DAW-0)
+                  {medications.length} order{medications.length !== 1 ? "s" : ""} 
                 </p>
               </div>
             </div>
+
+            {/* Column Headers */}
+            {medications.length > 0 && (
+              <div className="flex items-center gap-3 pb-2 border-b border-slate-300 text-[10px] font-bold uppercase tracking-wider text-slate-500">
+                <div style={{ width: 26 }} className="shrink-0" />
+                <div className="flex-1 flex gap-4">
+                  <div className="w-1/3 shrink-0">Medication</div>
+                  <div className="flex-1 flex gap-4 justify-between">
+                    <div className="flex-1">Instruction</div>
+                    <div className="shrink-0 text-right">Duration</div>
+                  </div>
+                </div>
+              </div>
+            )}
 
             {/* Med rows */}
             <div className="divide-y divide-slate-200">
@@ -226,34 +236,25 @@ export default function ReviewDocumentPage() {
               )}
               {medications.map((med, idx) => {
                 const name = med.medicine || med.name || "Unknown Medication";
+                const instructionText = med.instructions || [med.dose, med.route, med.frequency].filter(Boolean).join(" \u00b7 ") || "As directed";
                 return (
-                  <div key={idx} className="avoid-break py-4 flex items-start gap-4">
+                  <div key={idx} className="avoid-break py-2.5 flex items-start gap-3">
                     <div
                       className="rounded-full bg-slate-900 text-white flex items-center justify-center font-bold flex-shrink-0 mt-0.5"
                       style={{ width: 26, height: 26, fontSize: 11 }}
                     >
                       {idx + 1}
                     </div>
-                    <div className="flex-1 min-w-0">
-                      <h3 className="med-name font-bold">{name}</h3>
-                      <p className="med-sig mt-1">
-                        <strong>Sig:</strong>{" "}
-                        {med.instructions ||
-                          [med.dose, med.route, med.frequency].filter(Boolean).join(" \u00b7 ") ||
-                          "As directed by physician"}
-                      </p>
-                      {med.duration && (
-                        <p className="med-detail text-slate-600 mt-0.5">
-                          <strong>Duration:</strong> {med.duration}
+                    <div className="flex-1 min-w-0 flex flex-row items-baseline gap-4 mt-1">
+                      <h3 className="med-name font-bold text-slate-900 w-1/3 shrink-0 capitalize">{name}</h3>
+                      <div className="flex-1 min-w-0 flex flex-col sm:flex-row sm:items-baseline gap-1 sm:gap-4 justify-between">
+                        <p className="med-sig flex-1 capitalize text-slate-700">
+                          {instructionText}
                         </p>
-                      )}
-                    </div>
-                    <div className="flex-shrink-0 border border-slate-900 rounded px-3 py-2 text-center" style={{ minWidth: 80 }}>
-                      <p className="dispense-label uppercase tracking-wide text-slate-500 font-bold">Dispense</p>
-                      <p className="dispense-val font-bold">{med.dispense || "\u2014"}</p>
-                      <div className="my-1 h-px w-full bg-slate-300" />
-                      <p className="dispense-label uppercase tracking-wide text-slate-500 font-bold">Refills</p>
-                      <p className="dispense-val font-bold">{med.refills !== undefined ? String(med.refills) : "0"}</p>
+                        <p className="med-detail text-slate-600 whitespace-nowrap shrink-0 text-right capitalize">
+                          {med.duration || "\u2014"}
+                        </p>
+                      </div>
                     </div>
                   </div>
                 );
@@ -261,33 +262,41 @@ export default function ReviewDocumentPage() {
             </div>
 
             {/* Clinical Directives */}
-            <div className="mt-5 p-3 rounded border border-yellow-400 bg-yellow-50">
-              <p className="directive-label uppercase tracking-wider font-bold text-yellow-700 mb-1.5">
-                Clinical Directives &amp; Precautions
-              </p>
-              <ul className="directive-text text-slate-800" style={{ listStyle: "none", padding: 0, margin: 0, display: "flex", flexDirection: "column", gap: 4 }}>
-                <li style={{ display: "flex", gap: 6 }}>
-                  <span style={{ color: "#b45309", flexShrink: 0, marginTop: 1 }}>&bull;</span>
-                  <span><strong>Follow-up:</strong> {prescription?.follow_up || "As advised by the prescribing clinician."}</span>
-                </li>
-                <li style={{ display: "flex", gap: 6 }}>
-                  <span style={{ color: "#dc2626", flexShrink: 0, marginTop: 1 }}>&bull;</span>
-                  <span><strong>Allergies:</strong> {patient?.allergies || prescription?.allergies || "None documented."}</span>
-                </li>
-                <li style={{ display: "flex", gap: 6 }}>
-                  <span style={{ color: "#b45309", flexShrink: 0, marginTop: 1 }}>&bull;</span>
-                  <span><strong>Emergency:</strong> {prescription?.emergency_precautions || "Seek urgent medical care for severe or worsening symptoms."}</span>
-                </li>
-              </ul>
-            </div>
+            {(prescription?.follow_up || patient?.allergies || prescription?.allergies || prescription?.emergency_precautions) && (
+              <div className="mt-5 p-3 rounded border border-yellow-400 bg-yellow-50">
+                <p className="directive-label uppercase tracking-wider font-bold text-yellow-700 mb-1.5">
+                  Clinical Directives &amp; Precautions
+                </p>
+                <ul className="directive-text text-slate-800" style={{ listStyle: "none", padding: 0, margin: 0, display: "flex", flexDirection: "column", gap: 4 }}>
+                  {prescription?.follow_up && (
+                    <li style={{ display: "flex", gap: 6 }}>
+                      <span style={{ color: "#b45309", flexShrink: 0, marginTop: 1 }}>&bull;</span>
+                      <span><strong>Follow-up:</strong> {prescription.follow_up}</span>
+                    </li>
+                  )}
+                  {(patient?.allergies || prescription?.allergies) && (
+                    <li style={{ display: "flex", gap: 6 }}>
+                      <span style={{ color: "#dc2626", flexShrink: 0, marginTop: 1 }}>&bull;</span>
+                      <span><strong>Allergies:</strong> {patient?.allergies || prescription?.allergies}</span>
+                    </li>
+                  )}
+                  {prescription?.emergency_precautions && (
+                    <li style={{ display: "flex", gap: 6 }}>
+                      <span style={{ color: "#b45309", flexShrink: 0, marginTop: 1 }}>&bull;</span>
+                      <span><strong>Emergency:</strong> {prescription.emergency_precautions}</span>
+                    </li>
+                  )}
+                </ul>
+              </div>
+            )}
 
             {/* Diagnoses */}
-            <div className="mt-4 flex gap-8">
-              <div>
-                <p className="section-label uppercase tracking-widest font-bold text-slate-400">Primary Diagnosis</p>
-                <p className="detail-line font-bold text-slate-800">{prescription?.final_diagnosis || prescription?.differential_diagnosis || "Not recorded"}</p>
+            {(prescription?.final_diagnosis || prescription?.differential_diagnosis) && (
+              <div className="mt-5 pt-4 border-t border-slate-200">
+                <p className="section-label uppercase tracking-widest font-bold text-slate-400">Diagnosis</p>
+                <p className="detail-line font-bold text-slate-800 mt-1">{prescription?.final_diagnosis || prescription?.differential_diagnosis}</p>
               </div>
-            </div>
+            )}
           </section>
 
           {/* ══ SIGNATURE ══ */}
@@ -340,9 +349,9 @@ export default function ReviewDocumentPage() {
           font-family: 'Times New Roman', Times, serif;
           width: 210mm;
           max-width: calc(100vw - 32px);
-          min-height: 297mm;
           background: white;
           box-shadow: 0 8px 40px rgba(0,0,0,0.18);
+          margin-bottom: 24px;
         }
         .prescription-bg {
           background: #e2e8f0;
@@ -399,9 +408,10 @@ export default function ReviewDocumentPage() {
             inset: 0 auto auto 0 !important;
             width: 100% !important;
             max-width: none !important;
-            min-height: auto !important;
+            height: auto !important;
             box-shadow: none !important;
             margin: 0 !important;
+            border: none !important;
             page-break-after: auto;
             print-color-adjust: exact;
             -webkit-print-color-adjust: exact;

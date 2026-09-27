@@ -228,7 +228,7 @@ export default function PharmacyHandoverPage() {
                   <div className="flex items-center gap-3">
                     <span className="material-symbols-outlined text-secondary text-[22px]">verified_user</span>
                     <span className="text-[13px] text-text-muted font-bold">
-                      Compound & Dose Precision verified via SleekCare Gravimetric Scale Node. Zero Variance.
+                      Compound & Dose Precision verified via MedScribe AI Gravimetric Scale Node. Zero Variance.
                     </span>
                   </div>
                   <span className="text-[13px] text-text-ink font-bold bg-surface-container px-3 py-1.5 rounded-md shadow-sm">100% Accuracy</span>

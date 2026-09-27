@@ -109,7 +109,7 @@ export default function ConfirmJoinPage({ onNext }: { onNext: (step: string, dat
               <label className="flex items-start gap-space-sm cursor-pointer select-none group">
                 <input type="checkbox" checked={attest} onChange={(e) => setAttest(e.target.checked)} className="w-5 h-5 rounded bg-surface-container text-primary accent-primary cursor-pointer focus:ring-2 focus:ring-primary mt-0.5" />
                 <span className="text-[12px] text-on-surface-variant group-hover:text-text-ink transition-colors">
-                  I attest that I am an appointed clinical provider at St. Jude Medical Center and authorize SleekCare to verify my credentials with the medical executive board.
+                  I attest that I am an appointed clinical provider at St. Jude Medical Center and authorize MedScribe AI to verify my credentials with the medical executive board.
                 </span>
               </label>
 

@@ -31,17 +31,54 @@ export default function VoiceProcessingPage() {
     }
   }, []);
 
+  const [error, setError] = useState<string>("");
+
   useEffect(() => {
+    const transcription = localStorage.getItem("transcriptionResult");
+    let text = "";
+    if (transcription) {
+      try { text = JSON.parse(transcription).transcript || ""; } catch (e) {}
+    }
+    
+    if (!text) {
+        setError("No transcript found to process.");
+        return;
+    }
+
+    const CLINICAL_AI_API_URL = process.env.NEXT_PUBLIC_CLINICAL_AI_API_URL || (process.env.NODE_ENV === "development" ? "http://localhost:3001/api" : "/api");
+
+    let currentProgress = 58;
     const interval = setInterval(() => {
       setProgress((prev) => {
-        if (prev >= 98) {
-          clearInterval(interval);
-          setTimeout(() => router.push("/consultation/extraction"), 600);
-          return 100;
-        }
+        if (prev >= 90) return prev;
         return prev + 6;
       });
     }, 350);
+
+    fetch(`${CLINICAL_AI_API_URL}/prescription/extract-and-map`, {
+      method: "POST",
+      credentials: "include",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ transcript: text }),
+    })
+      .then(async (response) => {
+         if (!response.ok) {
+            const errText = await response.text();
+            throw new Error(`Extraction failed: ${errText}`);
+         }
+         const data = await response.json();
+         localStorage.removeItem("generatedPrescription");
+         localStorage.setItem("extractionResult", JSON.stringify({ transcript: text, mapped: data.mapped || [] }));
+         
+         clearInterval(interval);
+         setProgress(100);
+         setTimeout(() => router.push("/consultation/extraction"), 600);
+      })
+      .catch((err) => {
+         clearInterval(interval);
+         setError(err.message);
+      });
+
     return () => clearInterval(interval);
   }, [router]);
 
@@ -146,7 +183,7 @@ export default function VoiceProcessingPage() {
             Processing Encounter Data
           </h1>
           <p className="text-[16px] text-text-muted font-medium mt-space-xs max-w-lg">
-            The SleekCare Clinical LLM is structuring your audio into formal EHR notes, extracting prescriptions, and checking drug interactions.
+            The MedScribe AI is structuring your audio into formal EHR notes, extracting prescriptions, and checking drug interactions.
           </p>
 
           <div className="w-full max-w-xl mt-space-xl">
@@ -161,6 +198,12 @@ export default function VoiceProcessingPage() {
               ></div>
             </div>
           </div>
+          
+          {error && (
+            <div className="mt-space-md p-space-sm bg-error-container text-on-error-container rounded-lg text-sm font-semibold max-w-xl text-center">
+              {error}
+            </div>
+          )}
         </div>
       </div>
       </div>

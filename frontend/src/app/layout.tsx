@@ -5,7 +5,7 @@ import GlobalToast from "@/components/shared/GlobalToast";
 import { ThemeProvider } from "@/components/ThemeProvider";
 
 export const metadata: Metadata = {
-  title: "SleekCare Clinical Voice OS",
+  title: "MedScribe AI",
   description: "AI-powered Clinical Voice Prescription & Workspace",
 };
 

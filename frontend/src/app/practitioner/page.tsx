@@ -113,7 +113,7 @@ export default function PractitionerPatientProfilePage() {
               <span className={`material-symbols-outlined text-[20px] ${isConnecting ? 'animate-spin' : 'group-hover:rotate-12 transition-transform'}`}>
                 {isConnecting ? 'refresh' : 'clinical_notes'}
               </span>
-              <span>{isConnecting ? 'Connecting Voice OS...' : 'Start Consultation'}</span>
+              <span>{isConnecting ? 'Connecting MedScribe AI...' : 'Start Consultation'}</span>
               {!isConnecting && <span className="material-symbols-outlined text-[20px] group-hover:translate-x-1 transition-transform">arrow_forward</span>}
             </button>
           </div>

@@ -174,30 +174,48 @@ export default function VoiceListeningPage() {
       const extension = audioBlob.type.includes("wav") ? "wav" : audioBlob.type.includes("ogg") ? "ogg" : "webm";
       formData.append("audio", audioBlob, `recording.${extension}`);
       
-      // Long Modal requests can outlive Next.js's development rewrite proxy.
+      // Long ASR requests can outlive Next.js's development rewrite proxy.
       // In local development, call the authenticated backend directly.
       const response = await fetch(`${TRANSCRIPTION_API_URL}/transcription`, {
         method: "POST",
         credentials: "include",
         body: formData,
       });
-      
-      const responseText = await response.text();
-      const contentType = response.headers.get("content-type") || "";
-      let result: any;
-      if (contentType.includes("application/json")) {
-        try { result = JSON.parse(responseText); } catch { result = null; }
-      } else {
-        const events = responseText
-          .split("\n")
-          .filter((line) => line.startsWith("data: "))
-          .map((line) => JSON.parse(line.slice(6)));
-        result = events.find((event) => event.type === "error") ||
-          events.find((event) => event.type === "final");
-      }
+
       if (!response.ok) {
-        throw new Error(result?.error || result?.message || `Transcription failed (${response.status})`);
+        const errText = await response.text();
+        throw new Error(`Transcription failed: ${errText}`);
       }
+
+      const data = await response.json();
+      const jobId = data.jobId;
+
+      if (!jobId) throw new Error("No job ID received from transcription API");
+
+      const result: any = await new Promise((resolve, reject) => {
+        const eventSource = new EventSource(`${TRANSCRIPTION_API_URL}/transcription/status/${jobId}`, { withCredentials: true });
+
+        eventSource.onmessage = (event) => {
+          try {
+            const d = JSON.parse(event.data);
+            if (d.type === 'final') {
+              eventSource.close();
+              resolve(d);
+            } else if (d.type === 'error') {
+              eventSource.close();
+              reject(new Error(d.error));
+            }
+          } catch (e) {
+            console.error("Failed to parse SSE data", e);
+          }
+        };
+
+        eventSource.onerror = (err) => {
+          eventSource.close();
+          reject(new Error("Lost connection to transcription worker."));
+        };
+      });
+
       if (!result) throw new Error("Transcription response did not contain a result");
       const transcript = String(result.text || "").trim();
       if (!transcript) throw new Error("No speech was detected in the recording");
@@ -387,3 +405,4 @@ export default function VoiceListeningPage() {
     </section>
   );
 }
+

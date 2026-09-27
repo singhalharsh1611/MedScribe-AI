@@ -76,7 +76,7 @@ export default function PharmacyQueuePage() {
       <div className="flex flex-wrap items-center justify-between gap-4">
         <div className="flex items-center gap-2 text-[12px] text-text-muted font-semibold">
           <Link href="/pharmacy/dashboard" className="hover:text-primary transition-colors cursor-pointer">
-            SleekCare Pharmacy
+            MedScribe AI Pharmacy
           </Link>
           <span className="material-symbols-outlined text-[14px]">chevron_right</span>
           <span className="text-text-ink font-bold">Rx Dispensing Queue</span>

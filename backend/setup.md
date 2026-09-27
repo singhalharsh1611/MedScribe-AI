@@ -10,13 +10,11 @@ Before running anything, ensure your `backend/.env` file is fully configured. It
 PORT=3001
 FRONTEND_URL=http://localhost:3000
 
-# Sarvam STT WebSocket Credentials
-SARVAM_API_KEY=your_sarvam_api_key
 
-# Dr7 MedGemma Credentials (For Drug Extraction)
-DR7_LLM_MODEL=medgemma-4b-it
-DR7_API_KEY=api_key_dr7.ai
-DR7_API_URL=https://dr7.ai/api/v1/medical/chat/completions
+# MedGemma API MedGemma Credentials (For Drug Extraction)
+MEDGEMMA_LLM_MODEL=medgemma-4b-it
+MEDGEMMA_API_KEY=api_key_medgemma.api
+MEDGEMMA_API_URL=https://dr7.ai/api/v1/medical/chat/completions
 
 # Managed Neon PostgreSQL Database
 DATABASE_URL=postgresql://user:pass@host/dbname?sslmode=require
@@ -58,7 +56,7 @@ cd backend
 npm run dev
 ```
 
-This server hosts both the standard REST API and the WebSocket server required for live audio streaming to Sarvam.
+This server hosts the standard REST API required for audio processing.
 On boot, you should see a console log saying:
 `Connected to Neon Postgres`
 
@@ -72,7 +70,7 @@ The Prescription pipeline bridges the gap between messy audio transcriptions and
 Because voice transcripts are messy (e.g., *"take rebeca twenty milligram twice a day"*), we cannot fuzzy search the whole sentence.
 * **Endpoint:** `POST /api/prescription/extract`
 * **Input:** `{ "transcript": "take rebeca twenty milligram twice a day" }`
-* **What happens:** We send the transcript to **MedGemma** via the Dr7 API. MedGemma is prompted strictly for Named Entity Recognition (NER).
+* **What happens:** We send the transcript to **MedGemma** via the MedGemma API API. MedGemma is prompted strictly for Named Entity Recognition (NER).
 * **Output:** It returns a clean JSON array of suspected names exactly as they were misspelled.
 
 ### Step 2: Constrained Database Mapping

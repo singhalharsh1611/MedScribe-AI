@@ -1,4 +1,4 @@
-import { Pool } from 'pg';
+﻿import { Pool } from 'pg';
 import 'dotenv/config';
 
 // Create new database connections
@@ -11,12 +11,12 @@ pool.query('SELECT NOW()', (err) => {
   if (err) {
     console.error('Failed to connect to Postgres:', err);
   } else {
-    console.log('✅ Successfully connected to Postgres Database!');
+    console.log('âœ… Successfully connected to Postgres Database!');
   }
 });
 
 export const logUsage = async (durationSeconds: number, transcriptionText: string, audioUrl: string | null = null) => {
-  // Sarvam STT Streaming API pricing: ₹30.00 per hour
+  // ASR STT Streaming API pricing
   const costInr = (durationSeconds / 3600) * 30.00;
   
   const query = `
@@ -101,6 +101,7 @@ export const getPrescriptionById = async (id: number, clinicId: number) => {
 };
 
 export default pool;
+
 
 
 

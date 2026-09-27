@@ -2,7 +2,7 @@ import { Router } from 'express';
 import pool from '../services/db.service';
 import { getPrincipal } from '../middleware/auth.middleware';
 import { sendServerError } from '../utils/http-error';
-import { renderPrescriptionHtml } from '../services/prescription.service';
+
 
 const router = Router();
 
@@ -194,7 +194,6 @@ router.post('/finalize', async (req, res) => {
       patient_gender: patientRecord.gender ?? 'N/A',
     };
     const resolvedDiagnosis = authoritativePrescription.final_diagnosis || authoritativePrescription.differential_diagnosis || diagnosis || null;
-    const renderedHtml = renderPrescriptionHtml(authoritativePrescription);
 
     let resolvedQueueId = queue_id == null || queue_id === '' ? null : Number(queue_id);
     if (resolvedQueueId !== null && (!Number.isInteger(resolvedQueueId) || resolvedQueueId <= 0)) {
@@ -267,6 +266,12 @@ router.post('/finalize', async (req, res) => {
         `INSERT INTO encounters
            (patient_id, doctor_id, clinic_id, queue_id, chief_complaint, diagnosis, notes, status, ended_at)
          VALUES ($1,$2,$3,$4,$5,$6,$7,'completed',NOW())
+         ON CONFLICT ON CONSTRAINT encounters_queue_id_idx DO UPDATE SET
+           chief_complaint = COALESCE(EXCLUDED.chief_complaint, encounters.chief_complaint),
+           diagnosis       = EXCLUDED.diagnosis,
+           notes           = COALESCE(EXCLUDED.notes, encounters.notes),
+           status          = 'completed',
+           ended_at        = COALESCE(encounters.ended_at, NOW())
          RETURNING *`,
         [patient_id, principal.id, clinicId, resolvedQueueId, chief_complaint ?? null, resolvedDiagnosis, notes ?? null]
       );
@@ -323,7 +328,7 @@ router.post('/finalize', async (req, res) => {
          audio_url=EXCLUDED.audio_url,
          prescription_data=EXCLUDED.prescription_data
        RETURNING id, serial`,
-      [resolvedDiagnosis, renderedHtml, transcription ?? '', audio_url ?? null,
+      [resolvedDiagnosis, null, transcription ?? '', audio_url ?? null,
        clinicId, principal.id, encounter.id, JSON.stringify(authoritativePrescription), patient_id]
     );
     const prescriptionId = saved.rows[0].id;

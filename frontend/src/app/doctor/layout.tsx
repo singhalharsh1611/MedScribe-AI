@@ -17,7 +17,7 @@ export default function DoctorLayout({ children }: { children: ReactNode }) {
         </main>
         <footer className="w-full bg-card-surface py-space-sm px-gutter-desktop shadow-[0_1px_8px_rgba(7,12,25,0.04)] mt-auto border-t border-surface-container">
           <div className="flex flex-col sm:flex-row items-center justify-between text-on-surface-variant text-[12px] gap-2">
-            <span>© 2025 SleekCare Health Systems Inc. Clinical Voice Architecture.</span>
+            <span>© 2025 MedScribe AI.</span>
             <span>BAA Executed • SOC 2 Type II • HIPAA Compliant</span>
           </div>
         </footer>

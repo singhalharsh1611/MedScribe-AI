@@ -107,22 +107,9 @@ export default function ReviewFinalizedPage() {
       <div className="flex flex-col gap-6 max-w-7xl mx-auto w-full">
         {/* Breadcrumb */}
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pt-1">
-          <nav className="flex items-center gap-2 text-text-muted text-[13px]">
-            <Link href="/doctor/dashboard" className="hover:text-primary transition-colors cursor-pointer">Doctor Workspace</Link>
-            <span className="material-symbols-outlined text-[14px]">chevron_right</span>
-            <span className="text-on-surface font-semibold">{patientName}</span>
-            <span className="material-symbols-outlined text-[14px]">chevron_right</span>
-            <span className="text-clinical-success font-bold">Encounter Finalized</span>
-          </nav>
+
           <div className="flex items-center gap-2 self-start sm:self-auto">
-            <div className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-success-bg text-clinical-success text-[11px] font-bold shadow-sm">
-              <span className="material-symbols-outlined text-[16px]">verified</span>
-              <span>HL7 FHIR v4.0.1 VALIDATED</span>
-            </div>
-            <div className="flex items-center gap-1 px-2.5 py-1 rounded-full bg-surface-container-high text-on-surface-variant text-[11px] font-medium">
-              <span className="material-symbols-outlined text-[14px]">schedule</span>
-              <span>{timeStr}</span>
-            </div>
+
           </div>
         </div>
 

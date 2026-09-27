@@ -1,3 +1,4 @@
+import { getRedisClient } from '../services/redis.service';
 import { Request, Response } from 'express';
 import { extractDrugs, mapDrugsToDatabase, generatePrescription, isPrescriptionServiceReady } from '../services/prescription.service';
 import { savePrescription, getPrescriptions, getPrescriptionById } from '../services/db.service';
@@ -107,7 +108,17 @@ export const handleGetHistory = async (req: Request, res: Response) => {
     try {
         const principal = clinicUser(req, res);
         if (!principal) return;
+        
+        const cacheKey = `history:clinic:${principal.clinicId}`;
+        const redis = getRedisClient();
+        const cached = await redis.get(cacheKey);
+        if (cached) {
+            return res.json({ history: JSON.parse(cached) });
+        }
+        
         const history = await getPrescriptions(principal.clinicId!);
+        await redis.setex(cacheKey, 60, JSON.stringify(history)); // cache for 60 seconds
+        
         res.json({ history });
     } catch (error) {
         sendServerError(res, 'PRESCRIPTION_HISTORY_READ_FAILED', 'Unable to load prescription history.', error);
@@ -139,10 +150,20 @@ export const handleGetPrescriptionRecord = async (req: Request, res: Response) =
             return res.status(400).json({ code: 'INVALID_PRESCRIPTION_ID', error: 'Invalid prescription ID.' });
         }
 
+        const cacheKey = `prescription:record:${id}:clinic:${principal.clinicId}`;
+        const redis = getRedisClient();
+        const cached = await redis.get(cacheKey);
+        if (cached) {
+            return res.json({ prescription: JSON.parse(cached) });
+        }
+
         const prescription = await getPrescriptionById(id, principal.clinicId!);
         if (!prescription) {
             return res.status(404).json({ code: 'PRESCRIPTION_NOT_FOUND', error: 'Prescription not found.' });
         }
+        
+        await redis.setex(cacheKey, 300, JSON.stringify(prescription)); // cache for 5 minutes
+        
         res.json({ prescription });
     } catch (error) {
         sendServerError(res, 'PRESCRIPTION_READ_FAILED', 'Unable to load the prescription.', error);

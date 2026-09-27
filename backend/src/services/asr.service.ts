@@ -1,27 +1,23 @@
-
-import axios from "axios";
+﻿import axios from "axios";
 import * as fs from "fs";
 import FormData from "form-data";
 
-export const transcribeAudioModal = async (
+export const transcribeAudio = async (
   audioPath: string,
   onProgress?: (text: string) => void
 ) => {
-  const apiKey = process.env.MODAL_API_KEY;
-  
   if (onProgress) {
-    onProgress("Starting Modal API transcription...");
+    onProgress("Starting ASR transcription...");
   }
 
   const formData = new FormData();
   formData.append("file", fs.createReadStream(audioPath));
 
   try {
-    const modalTranscribeUrl = process.env.MODAL_TRANSCRIBE_URL || "https://sleekcare0109--parrotlet-web.modal.run/transcribe";
-    const response = await axios.post(modalTranscribeUrl, formData, {
+    const transcribeUrl = process.env.TRANSCRIBE_URL || "https://medai.eka.care/api/asr/transcribe";
+    const response = await axios.post(transcribeUrl, formData, {
       headers: {
         ...formData.getHeaders(),
-        "Authorization": `Bearer ${apiKey}`
       }
     });
 
@@ -63,11 +59,10 @@ export const transcribeAudioModal = async (
     
     return {
       text: transcript,
-      detectedLanguage: "en", // Assuming English for now
+      detectedLanguage: "en",
     };
   } catch (error: any) {
-    console.error("Modal Transcription Error:", error.response?.data || error.message);
-    throw new Error(`Modal STT Error: ${error.message}`);
+    console.error("ASR Transcription Error:", error.response?.data || error.message);
+    throw new Error(`ASR STT Error: `);
   }
 };
-

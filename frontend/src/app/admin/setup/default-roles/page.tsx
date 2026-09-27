@@ -124,7 +124,7 @@ export default function AdminSetupDefaultRolesPage() {
             <span className="text-text-muted text-[11px] font-bold">Step 2 of 3</span>
           </div>
           <h1 className="text-[28px] font-bold text-text-ink tracking-tight">Default Organizational Roles</h1>
-          <p className="text-[15px] font-medium text-text-muted">Review SleekCare standard roles calibrated for outpatient clinics and acute care practices.</p>
+          <p className="text-[15px] font-medium text-text-muted">Review MedScribe AI standard roles calibrated for outpatient clinics and acute care practices.</p>
         </div>
         {/* Linear Stepper */}
         <div className="flex items-center gap-2 bg-card-surface px-4 py-3 rounded-xl shadow-sm border border-surface-container">

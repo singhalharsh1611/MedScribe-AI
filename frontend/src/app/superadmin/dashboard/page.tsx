@@ -77,7 +77,7 @@ export default function SuperAdminDashboard() {
             <span className="material-symbols-outlined text-on-primary text-[18px]">admin_panel_settings</span>
           </div>
           <div>
-            <span className="text-[15px] font-bold text-text-ink">SleekCare Platform Admin</span>
+            <span className="text-[15px] font-bold text-text-ink">MedScribe AI Admin</span>
             <p className="text-[11px] text-text-muted">Logged in as {admin?.username}</p>
           </div>
         </div>

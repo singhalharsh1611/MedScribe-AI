@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import { getUser, api } from "@/lib/api";
 
-export default function HeaderClinicName({ defaultText = "SleekCare Clinic" }: { defaultText?: string }) {
+export default function HeaderClinicName({ defaultText = "MedScribe AI Clinic" }: { defaultText?: string }) {
   const [name, setName] = useState("");
   const [loading, setLoading] = useState(true);
 

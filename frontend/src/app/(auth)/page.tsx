@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 import Link from "next/link";
 import { ThemeToggle } from "@/components/ThemeToggle";
 
@@ -6,7 +6,7 @@ export default function WelcomePage() {
   return (
     <div className="relative w-full min-h-[calc(100vh-8rem)] flex items-center justify-center px-4 md:px-margin-desktop py-space-xl overflow-hidden">
 
-      {/* ── Animated blobs ── outside opacity-0 wrapper so they're always visible */}
+      {/* â”€â”€ Animated blobs â”€â”€ outside opacity-0 wrapper so they're always visible */}
       <div
         className="animate-blob-1 pointer-events-none absolute"
         style={{
@@ -70,23 +70,23 @@ export default function WelcomePage() {
         }}
       />
 
-      {/* ── Card ── */}
+      {/* â”€â”€ Card â”€â”€ */}
       <div className="relative w-full max-w-xl mx-auto flex flex-col items-center animate-glide-in opacity-0">
         <div className="w-full bg-card-surface rounded-xl shadow-[0_12px_28px_-6px_rgba(56,91,197,0.08),0_4px_12px_-2px_rgba(7,12,25,0.04)] p-space-lg md:p-space-2xl flex flex-col items-center text-center relative overflow-hidden">
           <div className="absolute top-0 inset-x-0 h-1 bg-gradient-to-r from-primary via-accent-light to-tertiary-container"></div>
 
           <div className="relative mb-space-lg group">
-            <img className="w-auto h-36 object-contain" alt="Waveform Emblem" src="logo.svg" />
+            <img className="w-auto h-36 object-contain" alt="Waveform Emblem" src="medscribe.svg" />
           </div>
 
           <div className="flex items-center gap-space-xs text-text-ink mb-space-xs">
-            <span className="text-[22px] font-bold tracking-tight text-primary">SleekCare</span>
+            <span className="text-[22px] font-bold tracking-tight text-primary">MedScribe AI</span>
             <span className="w-1 h-4 bg-outline-variant rounded-full mx-1"></span>
-            <span className="text-[13px] font-semibold uppercase tracking-wider text-on-surface-variant">Voice OS</span>
+            <span className="text-[13px] font-semibold uppercase tracking-wider text-on-surface-variant">MedScribe AI</span>
           </div>
 
           <h1 className="text-[28px] font-bold text-text-ink tracking-tight mt-space-xs mb-space-sm max-w-md">
-            Clinical Voice OS for Modern Healthcare
+            Next-Generation Medical Scribe AI
           </h1>
 
           <p className="text-[16px] text-on-surface-variant max-w-lg mb-space-xl leading-relaxed">
@@ -124,3 +124,4 @@ export default function WelcomePage() {
     </div>
   );
 }
+
